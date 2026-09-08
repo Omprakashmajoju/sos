@@ -247,6 +247,25 @@
       gap: 6px;
     }
 
+    .mode-selector {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      min-height: 38px;
+      background: var(--surface-light);
+      color: var(--text);
+      border: 1px solid transparent;
+    }
+
+    .mode-btn.active {
+      background: #1d4ed8;
+      border-color: rgba(148, 163, 184, 0.5);
+    }
+
     button {
       flex: 1;
       min-height: 42px;
@@ -355,6 +374,10 @@
   </div>
 
   <div class="controls-panel">
+    <div class="mode-selector">
+      <button class="mode-btn active" data-mode="single">Single Player</button>
+      <button class="mode-btn" data-mode="two">2 Players</button>
+    </div>
     <div class="inputs-row">
       <div class="input-field grow">
         <label for="p1-input">P1 Name</label>
@@ -362,7 +385,7 @@
       </div>
       <div class="input-field grow">
         <label for="p2-input">P2 Name</label>
-        <input type="text" id="p2-input" value="Player 2" maxlength="10" />
+        <input type="text" id="p2-input" value="AI" maxlength="10" />
       </div>
       <div class="input-field fixed-size">
         <label for="grid-size-input">Size</label>
@@ -379,10 +402,12 @@
   <script>
     let GRID_SIZE = 3;
     let player1Name = "Player 1";
-    let player2Name = "Player 2";
+    let player2Name = "AI";
     let currentPlayer = 1;
     let scores = { 1: 0, 2: 0 };
     let isGameOver = false;
+    let gameMode = 'single';
+    let isAiThinking = false;
 
     let horizontalEdges = [];
     let verticalEdges = [];
@@ -402,9 +427,161 @@
     const p2Input = document.getElementById('p2-input');
     const sizeInput = document.getElementById('grid-size-input');
     const undoBtn = document.getElementById('undo-btn');
+    const modeButtons = Array.from(document.querySelectorAll('.mode-btn'));
 
     const SVG_DIM = 400;
     const PAD = 25;
+
+    function setGameMode(mode) {
+      gameMode = mode;
+      modeButtons.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+
+      if (gameMode === 'single') {
+        p2Input.disabled = true;
+        p2Input.value = 'AI';
+        player2Name = 'AI';
+      } else {
+        p2Input.disabled = false;
+        player2Name = p2Input.value.trim() || 'Player 2';
+        p2Input.value = player2Name;
+      }
+
+      label2El.textContent = player2Name;
+      initGame();
+    }
+
+    function getAllAvailableMoves() {
+      const moves = [];
+
+      for (let r = 0; r <= GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (horizontalEdges[r][c] === null) {
+            moves.push({ type: 'h', r, c });
+          }
+        }
+      }
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c <= GRID_SIZE; c++) {
+          if (verticalEdges[r][c] === null) {
+            moves.push({ type: 'v', r, c });
+          }
+        }
+      }
+
+      return moves;
+    }
+
+    function getCompletedBoxesForState(type, r, c, hState, vState, boxState) {
+      const completed = [];
+      const isBoxComplete = (row, col) => (
+        hState[row][col] !== null &&
+        hState[row + 1][col] !== null &&
+        vState[row][col] !== null &&
+        vState[row][col + 1] !== null
+      );
+
+      if (type === 'h') {
+        if (r > 0 && isBoxComplete(r - 1, c) && boxState[r - 1][c] === null) {
+          completed.push({ r: r - 1, c });
+        }
+        if (r < GRID_SIZE && isBoxComplete(r, c) && boxState[r][c] === null) {
+          completed.push({ r, c });
+        }
+      } else {
+        if (c > 0 && isBoxComplete(r, c - 1) && boxState[r][c - 1] === null) {
+          completed.push({ r, c: c - 1 });
+        }
+        if (c < GRID_SIZE && isBoxComplete(r, c) && boxState[r][c] === null) {
+          completed.push({ r, c });
+        }
+      }
+
+      return completed;
+    }
+
+    function chooseAiMove() {
+      const availableMoves = getAllAvailableMoves();
+      if (availableMoves.length === 0) return null;
+
+      let bestMove = null;
+      let bestScore = -Infinity;
+
+      for (const move of availableMoves) {
+        const hCopy = horizontalEdges.map((row) => row.slice());
+        const vCopy = verticalEdges.map((row) => row.slice());
+        const boxCopy = boxes.map((row) => row.slice());
+
+        if (move.type === 'h') {
+          hCopy[move.r][move.c] = 2;
+        } else {
+          vCopy[move.r][move.c] = 2;
+        }
+
+        const captured = getCompletedBoxesForState(move.type, move.r, move.c, hCopy, vCopy, boxCopy);
+        let immediateGain = captured.length;
+
+        for (const box of captured) {
+          boxCopy[box.r][box.c] = 2;
+        }
+
+        let futureThreat = 0;
+        const oppMoves = [];
+
+        for (let r = 0; r <= GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            if (hCopy[r][c] === null) oppMoves.push({ type: 'h', r, c });
+          }
+        }
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c <= GRID_SIZE; c++) {
+            if (vCopy[r][c] === null) oppMoves.push({ type: 'v', r, c });
+          }
+        }
+
+        for (const oppMove of oppMoves) {
+          const oppH = hCopy.map((row) => row.slice());
+          const oppV = vCopy.map((row) => row.slice());
+          const oppBoxes = boxCopy.map((row) => row.slice());
+
+          if (oppMove.type === 'h') {
+            oppH[oppMove.r][oppMove.c] = 1;
+          } else {
+            oppV[oppMove.r][oppMove.c] = 1;
+          }
+
+          const oppCaptured = getCompletedBoxesForState(oppMove.type, oppMove.r, oppMove.c, oppH, oppV, oppBoxes);
+          futureThreat = Math.max(futureThreat, oppCaptured.length);
+        }
+
+        const score = immediateGain * 100 - futureThreat * 15;
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+      }
+
+      return bestMove;
+    }
+
+    function triggerAiTurn() {
+      if (gameMode !== 'single' || currentPlayer !== 2 || isGameOver) return;
+
+      isAiThinking = true;
+      statusMsg.textContent = 'AI is thinking...';
+      statusMsg.style.color = 'var(--p2)';
+
+      setTimeout(() => {
+        isAiThinking = false;
+        const move = chooseAiMove();
+        if (move) {
+          claimEdge(move.type, move.r, move.c);
+        }
+      }, 420);
+    }
 
     function getStep() {
       return (SVG_DIM - PAD * 2) / GRID_SIZE;
@@ -412,7 +589,13 @@
 
     function startNewGame() {
       player1Name = p1Input.value.trim() || "Player 1";
-      player2Name = p2Input.value.trim() || "Player 2";
+      if (gameMode === 'single') {
+        player2Name = 'AI';
+        p2Input.value = 'AI';
+      } else {
+        player2Name = p2Input.value.trim() || "Player 2";
+      }
+
       label1El.textContent = player1Name;
       label2El.textContent = player2Name;
 
@@ -696,6 +879,10 @@
         statusMsg.textContent = `${activeName}'s turn`;
         statusMsg.style.color = "var(--p2)";
       }
+
+      if (gameMode === 'single' && currentPlayer === 2 && !isAiThinking && !isGameOver) {
+        triggerAiTurn();
+      }
     }
 
     function endGame() {
@@ -714,6 +901,12 @@
       }
     }
 
+    modeButtons.forEach((button) => {
+      button.addEventListener('click', () => setGameMode(button.dataset.mode));
+    });
+
+    p2Input.disabled = true;
+    label2El.textContent = 'AI';
     startNewGame();
   </script>
 </body>
