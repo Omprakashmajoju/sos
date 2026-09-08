@@ -24,97 +24,111 @@
       -webkit-user-select: none;
     }
 
-    body {
+    html, body {
       margin: 0;
-      padding: 12px;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      padding: 6px 12px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
       justify-content: space-between;
+      height: 100dvh;
     }
 
     header {
       width: 100%;
-      max-width: 440px;
+      max-width: 400px;
       text-align: center;
+      flex-shrink: 0;
     }
 
+    /* Compact Player Scoreboard */
     .scoreboard {
       display: flex;
       justify-content: space-between;
-      margin: 10px 0;
-      gap: 12px;
+      margin: 2px 0 4px 0;
+      gap: 8px;
     }
 
     .player-card {
       flex: 1;
-      padding: 10px;
-      border-radius: 12px;
+      min-width: 0;
+      padding: 4px 8px;
+      border-radius: 8px;
       background: var(--surface);
-      border: 2px solid transparent;
+      border: 1.5px solid transparent;
       transition: all 0.2s ease;
       display: flex;
-      flex-direction: column;
       align-items: center;
+      justify-content: space-between;
     }
 
     .player-card.active-p1 {
       border-color: var(--p1);
-      box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
     }
 
     .player-card.active-p2 {
       border-color: var(--p2);
-      box-shadow: 0 0 14px rgba(244, 63, 94, 0.35);
+      box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
     }
 
     .player-title {
-      font-size: 0.95rem;
+      font-size: 0.78rem;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      max-width: 130px;
+      padding-right: 4px;
     }
 
     .p1-text { color: var(--p1); }
     .p2-text { color: var(--p2); }
 
     .score {
-      font-size: 1.8rem;
+      font-size: 1.25rem;
       font-weight: 800;
-      margin-top: 2px;
+      line-height: 1;
     }
 
     #status-msg {
-      font-size: 0.95rem;
+      font-size: 0.8rem;
       font-weight: 600;
-      margin-bottom: 6px;
-      min-height: 1.3rem;
+      margin-bottom: 2px;
+      min-height: 1rem;
     }
 
+    /* Auto-Fitting Board Area */
     #board-container {
-      width: 100%;
-      max-width: 440px;
-      aspect-ratio: 1 / 1;
+      width: min(92vw, calc(100dvh - 210px));
+      height: min(92vw, calc(100dvh - 210px));
+      max-width: 400px;
+      max-height: 400px;
       margin: auto 0;
       display: flex;
       align-items: center;
       justify-content: center;
       background: #0b1120;
-      border-radius: 16px;
+      border-radius: 12px;
       padding: 6px;
       box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
       cursor: pointer;
+      flex-shrink: 0;
     }
 
     svg {
       width: 100%;
       height: 100%;
+      display: block;
       overflow: visible;
       pointer-events: none;
     }
@@ -150,32 +164,43 @@
       fill: var(--dot);
     }
 
+    /* Controls Panel */
     .controls-panel {
       width: 100%;
-      max-width: 440px;
+      max-width: 400px;
       background: var(--surface);
-      border-radius: 14px;
-      padding: 12px;
+      border-radius: 10px;
+      padding: 8px 10px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
-      margin-top: 10px;
+      gap: 6px;
+      flex-shrink: 0;
     }
 
     .inputs-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
+      width: 100%;
     }
 
     .input-field {
-      flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .input-field.grow {
+      flex: 1;
+    }
+
+    .input-field.fixed-size {
+      width: 52px;
+      flex-shrink: 0;
     }
 
     .input-field label {
-      font-size: 0.72rem;
+      font-size: 0.65rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
@@ -183,21 +208,28 @@
     }
 
     input[type="text"], input[type="number"] {
+      width: 100%;
       user-select: text;
       -webkit-user-select: text;
       background: var(--surface-light);
       border: 1px solid #475569;
-      border-radius: 6px;
-      padding: 8px;
+      border-radius: 5px;
+      padding: 5px 6px;
       color: var(--text);
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 600;
       outline: none;
     }
 
     input[type="number"] {
-      width: 65px;
       text-align: center;
+      -moz-appearance: textfield;
+    }
+
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
     }
 
     input:focus {
@@ -206,20 +238,21 @@
 
     .buttons-row {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     button {
       flex: 1;
-      padding: 10px 14px;
+      padding: 7px 8px;
       border: none;
-      border-radius: 8px;
+      border-radius: 6px;
       background: var(--surface-light);
       color: var(--text);
-      font-size: 0.85rem;
+      font-size: 0.78rem;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, opacity 0.15s;
+      white-space: nowrap;
     }
 
     button.primary-btn {
@@ -259,22 +292,22 @@
 
   <div class="controls-panel">
     <div class="inputs-row">
-      <div class="input-field">
+      <div class="input-field grow">
         <label for="p1-input">P1 Name</label>
-        <input type="text" id="p1-input" value="Player 1" maxlength="12" />
+        <input type="text" id="p1-input" value="Player 1" maxlength="10" />
       </div>
-      <div class="input-field">
+      <div class="input-field grow">
         <label for="p2-input">P2 Name</label>
-        <input type="text" id="p2-input" value="Player 2" maxlength="12" />
+        <input type="text" id="p2-input" value="Player 2" maxlength="10" />
       </div>
-      <div class="input-field" style="flex: 0;">
+      <div class="input-field fixed-size">
         <label for="grid-size-input">Size</label>
         <input type="number" id="grid-size-input" value="3" min="2" max="20" />
       </div>
     </div>
     <div class="buttons-row">
-      <button class="primary-btn" onclick="startNewGame()">Apply & Start</button>
-      <button id="undo-btn" onclick="undoLastMove()" disabled>Undo Move</button>
+      <button class="primary-btn" onclick="startNewGame()">Apply</button>
+      <button id="undo-btn" onclick="undoLastMove()" disabled>Undo</button>
       <button onclick="resetCurrentGame()">Restart</button>
     </div>
   </div>
@@ -354,6 +387,7 @@
       const lineWidth = Math.max(2, Math.min(4.5, 12 / Math.sqrt(GRID_SIZE)));
       const fontSize = Math.max(7, step * 0.45);
 
+      // 1. Box backgrounds & text
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
           const x = PAD + c * step;
@@ -378,6 +412,7 @@
         }
       }
 
+      // 2. Visible Horizontal Lines
       for (let r = 0; r <= GRID_SIZE; r++) {
         for (let c = 0; c < GRID_SIZE; c++) {
           const x1 = PAD + c * step;
@@ -386,6 +421,7 @@
         }
       }
 
+      // 3. Visible Vertical Lines
       for (let r = 0; r < GRID_SIZE; r++) {
         for (let c = 0; c <= GRID_SIZE; c++) {
           const x1 = PAD + c * step;
@@ -394,6 +430,7 @@
         }
       }
 
+      // 4. Visual Dots
       for (let r = 0; r <= GRID_SIZE; r++) {
         for (let c = 0; c <= GRID_SIZE; c++) {
           const cx = PAD + c * step;
@@ -420,6 +457,7 @@
       svg.appendChild(line);
     }
 
+    // Mathematical coordinate detection: selects exact closest edge
     boardContainer.addEventListener('pointerdown', (e) => {
       if (isGameOver) return;
 
