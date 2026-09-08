@@ -506,6 +506,18 @@
       const availableMoves = getAllAvailableMoves();
       if (availableMoves.length === 0) return null;
 
+      const moveCount = moveHistory.length;
+      const shouldUseVariedOpening = moveCount <= 2;
+
+      if (shouldUseVariedOpening) {
+        const openingPool = availableMoves.filter((move) => {
+          const centralBias = move.r === 0 || move.r === GRID_SIZE || move.c === 0 || move.c === GRID_SIZE;
+          return centralBias || (move.type === 'h' && move.r % 2 === 0) || (move.type === 'v' && move.c % 2 === 0);
+        });
+        const shuffled = [...openingPool].sort(() => Math.random() - 0.5);
+        if (shuffled.length) return shuffled[0];
+      }
+
       let bestMove = null;
       let bestScore = -Infinity;
 
@@ -557,7 +569,7 @@
           futureThreat = Math.max(futureThreat, oppCaptured.length);
         }
 
-        const score = immediateGain * 100 - futureThreat * 15;
+        const score = immediateGain * 100 - futureThreat * 15 + (Math.random() * 8);
         if (score > bestScore) {
           bestScore = score;
           bestMove = move;
@@ -574,13 +586,14 @@
       statusMsg.textContent = 'AI is thinking...';
       statusMsg.style.color = 'var(--p2)';
 
+      const aiDelay = moveHistory.length < 3 ? 700 : 450;
       setTimeout(() => {
         isAiThinking = false;
         const move = chooseAiMove();
         if (move) {
           claimEdge(move.type, move.r, move.c);
         }
-      }, 420);
+      }, aiDelay);
     }
 
     function getStep() {
