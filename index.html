@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Dots and Boxes</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface-light: #334155;
+      --p1: #38bdf8;       /* Blue */
+      --p2: #f43f5e;       /* Rose Red */
+      --grid-line: #334155;
+      --dot: #94a3b8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      justify-content: space-between;
+    }
+
+    header {
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+    }
+
+    .scoreboard {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+      gap: 12px;
+    }
+
+    .player-card {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      background: var(--surface);
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .player-card.active-p1 {
+      border-color: var(--p1);
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+    }
+
+    .player-card.active-p2 {
+      border-color: var(--p2);
+      box-shadow: 0 0 14px rgba(244, 63, 94, 0.35);
+    }
+
+    .player-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+    }
+
+    .p1-text { color: var(--p1); }
+    .p2-text { color: var(--p2); }
+
+    .score {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+
+    #status-msg {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      min-height: 1.3rem;
+    }
+
+    #board-container {
+      width: 100%;
+      max-width: 440px;
+      aspect-ratio: 1 / 1;
+      margin: auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b1120;
+      border-radius: 16px;
+      padding: 6px;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+      cursor: pointer;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      pointer-events: none;
+    }
+
+    .edge {
+      stroke: var(--grid-line);
+      stroke-linecap: round;
+      transition: stroke 0.15s ease;
+    }
+
+    .edge.claimed-p1 { stroke: var(--p1); }
+    .edge.claimed-p2 { stroke: var(--p2); }
+
+    .box-rect {
+      opacity: 0;
+      transition: fill 0.2s ease, opacity 0.2s ease;
+    }
+
+    .box-rect.claimed-p1 { fill: var(--p1); opacity: 0.28; }
+    .box-rect.claimed-p2 { fill: var(--p2); opacity: 0.28; }
+
+    .box-label {
+      font-weight: 800;
+      fill: var(--text);
+      text-anchor: middle;
+      dominant-baseline: central;
+      opacity: 0;
+    }
+
+    .box-label.visible { opacity: 1; }
+
+    .dot {
+      fill: var(--dot);
+    }
+
+    .controls-panel {
+      width: 100%;
+      max-width: 440px;
+      background: var(--surface);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .inputs-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .input-field {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .input-field label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    input[type="text"], input[type="number"] {
+      user-select: text;
+      -webkit-user-select: text;
+      background: var(--surface-light);
+      border: 1px solid #475569;
+      border-radius: 6px;
+      padding: 8px;
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      outline: none;
+    }
+
+    input[type="number"] {
+      width: 65px;
+      text-align: center;
+    }
+
+    input:focus {
+      border-color: var(--p1);
+    }
+
+    .buttons-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      background: var(--surface-light);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    button.primary-btn {
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    button:not(:disabled):active {
+      filter: brightness(1.15);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="scoreboard">
+      <div id="card-p1" class="player-card active-p1">
+        <span id="label-p1" class="player-title p1-text">Player 1</span>
+        <span id="score-p1" class="score p1-text">0</span>
+      </div>
+      <div id="card-p2" class="player-card">
+        <span id="label-p2" class="player-title p2-text">Player 2</span>
+        <span id="score-p2" class="score p2-text">0</span>
+      </div>
+    </div>
+    <div id="status-msg">Player 1's turn</div>
+  </header>
+
+  <div id="board-container">
+    <svg id="game-svg" viewBox="0 0 400 400"></svg>
+  </div>
+
+  <div class="controls-panel">
+    <div class="inputs-row">
+      <div class="input-field">
+        <label for="p1-input">P1 Name</label>
+        <input type="text" id="p1-input" value="Player 1" maxlength="12" />
+      </div>
+      <div class="input-field">
+        <label for="p2-input">P2 Name</label>
+        <input type="text" id="p2-input" value="Player 2" maxlength="12" />
+      </div>
+      <div class="input-field" style="flex: 0;">
+        <label for="grid-size-input">Size</label>
+        <input type="number" id="grid-size-input" value="3" min="2" max="20" />
+      </div>
+    </div>
+    <div class="buttons-row">
+      <button class="primary-btn" onclick="startNewGame()">Apply & Start</button>
+      <button id="undo-btn" onclick="undoLastMove()" disabled>Undo Move</button>
+      <button onclick="resetCurrentGame()">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    let GRID_SIZE = 3;
+    let player1Name = "Player 1";
+    let player2Name = "Player 2";
+    let currentPlayer = 1;
+    let scores = { 1: 0, 2: 0 };
+    let isGameOver = false;
+
+    let horizontalEdges = [];
+    let verticalEdges = [];
+    let boxes = [];
+    let moveHistory = [];
+
+    const boardContainer = document.getElementById('board-container');
+    const svg = document.getElementById('game-svg');
+    const score1El = document.getElementById('score-p1');
+    const score2El = document.getElementById('score-p2');
+    const label1El = document.getElementById('label-p1');
+    const label2El = document.getElementById('label-p2');
+    const card1El = document.getElementById('card-p1');
+    const card2El = document.getElementById('card-p2');
+    const statusMsg = document.getElementById('status-msg');
+    const p1Input = document.getElementById('p1-input');
+    const p2Input = document.getElementById('p2-input');
+    const sizeInput = document.getElementById('grid-size-input');
+    const undoBtn = document.getElementById('undo-btn');
+
+    const SVG_DIM = 400;
+    const PAD = 25;
+
+    function getStep() {
+      return (SVG_DIM - PAD * 2) / GRID_SIZE;
+    }
+
+    function startNewGame() {
+      player1Name = p1Input.value.trim() || "Player 1";
+      player2Name = p2Input.value.trim() || "Player 2";
+      label1El.textContent = player1Name;
+      label2El.textContent = player2Name;
+
+      let parsedSize = parseInt(sizeInput.value, 10);
+      if (isNaN(parsedSize) || parsedSize < 2) parsedSize = 2;
+      if (parsedSize > 20) parsedSize = 20;
+      GRID_SIZE = parsedSize;
+      sizeInput.value = GRID_SIZE;
+
+      initGame();
+    }
+
+    function resetCurrentGame() {
+      initGame();
+    }
+
+    function initGame() {
+      currentPlayer = 1;
+      scores = { 1: 0, 2: 0 };
+      isGameOver = false;
+      moveHistory = [];
+
+      horizontalEdges = Array.from({ length: GRID_SIZE + 1 }, () => Array(GRID_SIZE).fill(null));
+      verticalEdges = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE + 1).fill(null));
+      boxes = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
+
+      renderBoard();
+      updateUI();
+    }
+
+    function renderBoard() {
+      svg.innerHTML = '';
+      const step = getStep();
+
+      const dotRadius = Math.max(2, Math.min(5.5, 14 / Math.sqrt(GRID_SIZE)));
+      const lineWidth = Math.max(2, Math.min(4.5, 12 / Math.sqrt(GRID_SIZE)));
+      const fontSize = Math.max(7, step * 0.45);
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const x = PAD + c * step;
+          const y = PAD + r * step;
+
+          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          rect.setAttribute('x', x);
+          rect.setAttribute('y', y);
+          rect.setAttribute('width', step);
+          rect.setAttribute('height', step);
+          rect.setAttribute('id', `box-${r}-${c}`);
+          rect.setAttribute('class', 'box-rect');
+          svg.appendChild(rect);
+
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          text.setAttribute('x', x + step / 2);
+          text.setAttribute('y', y + step / 2);
+          text.setAttribute('font-size', `${fontSize}px`);
+          text.setAttribute('id', `box-label-${r}-${c}`);
+          text.setAttribute('class', 'box-label');
+          svg.appendChild(text);
+        }
+      }
+
+      for (let r = 0; r <= GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          const x1 = PAD + c * step;
+          const y1 = PAD + r * step;
+          createLine('h', r, c, x1, y1, x1 + step, y1, lineWidth);
+        }
+      }
+
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c <= GRID_SIZE; c++) {
+          const x1 = PAD + c * step;
+          const y1 = PAD + r * step;
+          createLine('v', r, c, x1, y1, x1, y1 + step, lineWidth);
+        }
+      }
+
+      for (let r = 0; r <= GRID_SIZE; r++) {
+        for (let c = 0; c <= GRID_SIZE; c++) {
+          const cx = PAD + c * step;
+          const cy = PAD + r * step;
+          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+          dot.setAttribute('cx', cx);
+          dot.setAttribute('cy', cy);
+          dot.setAttribute('r', dotRadius);
+          dot.setAttribute('class', 'dot');
+          svg.appendChild(dot);
+        }
+      }
+    }
+
+    function createLine(type, r, c, x1, y1, x2, y2, width) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1);
+      line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2);
+      line.setAttribute('y2', y2);
+      line.setAttribute('stroke-width', width);
+      line.setAttribute('id', `line-${type}-${r}-${c}`);
+      line.setAttribute('class', 'edge');
+      svg.appendChild(line);
+    }
+
+    boardContainer.addEventListener('pointerdown', (e) => {
+      if (isGameOver) return;
+
+      const rect = svg.getBoundingClientRect();
+      const scaleX = SVG_DIM / rect.width;
+      const scaleY = SVG_DIM / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      const step = getStep();
+
+      if (x < PAD - step * 0.4 || x > SVG_DIM - PAD + step * 0.4 ||
+          y < PAD - step * 0.4 || y > SVG_DIM - PAD + step * 0.4) {
+        return;
+      }
+
+      const colNorm = (x - PAD) / step;
+      const rowNorm = (y - PAD) / step;
+
+      const nearestRowH = Math.round(rowNorm);
+      const nearestColH = Math.floor(colNorm);
+      const clampedRowH = Math.max(0, Math.min(GRID_SIZE, nearestRowH));
+      const clampedColH = Math.max(0, Math.min(GRID_SIZE - 1, nearestColH));
+      const distH = Math.abs(rowNorm - clampedRowH);
+
+      const nearestColV = Math.round(colNorm);
+      const nearestRowV = Math.floor(rowNorm);
+      const clampedColV = Math.max(0, Math.min(GRID_SIZE, nearestColV));
+      const clampedRowV = Math.max(0, Math.min(GRID_SIZE - 1, nearestRowV));
+      const distV = Math.abs(colNorm - clampedColV);
+
+      let targetType, targetR, targetC;
+      if (distH < distV) {
+        targetType = 'h';
+        targetR = clampedRowH;
+        targetC = clampedColH;
+      } else {
+        targetType = 'v';
+        targetR = clampedRowV;
+        targetC = clampedColV;
+      }
+
+      claimEdge(targetType, targetR, targetC);
+    });
+
+    function claimEdge(type, r, c) {
+      const arr = (type === 'h') ? horizontalEdges : verticalEdges;
+      if (arr[r][c] !== null) return;
+
+      const playerWhoMoved = currentPlayer;
+      arr[r][c] = playerWhoMoved;
+
+      const line = document.getElementById(`line-${type}-${r}-${c}`);
+      line.classList.add(`claimed-p${playerWhoMoved}`);
+
+      const capturedBoxes = getCompletedBoxes(type, r, c);
+
+      moveHistory.push({
+        type,
+        r,
+        c,
+        player: playerWhoMoved,
+        capturedBoxes: [...capturedBoxes]
+      });
+
+      if (capturedBoxes.length > 0) {
+        capturedBoxes.forEach(b => markBox(b.r, b.c, playerWhoMoved));
+        scores[playerWhoMoved] += capturedBoxes.length;
+
+        if (scores[1] + scores[2] === GRID_SIZE * GRID_SIZE) {
+          isGameOver = true;
+          endGame();
+          updateUI();
+          return;
+        }
+      } else {
+        currentPlayer = (currentPlayer === 1) ? 2 : 1;
+      }
+
+      updateUI();
+    }
+
+    function getCompletedBoxes(type, r, c) {
+      const completed = [];
+      const isBoxComplete = (row, col) => {
+        return (
+          horizontalEdges[row][col] !== null &&
+          horizontalEdges[row + 1][col] !== null &&
+          verticalEdges[row][col] !== null &&
+          verticalEdges[row][col + 1] !== null
+        );
+      };
+
+      if (type === 'h') {
+        if (r > 0 && isBoxComplete(r - 1, c) && boxes[r - 1][c] === null) {
+          completed.push({ r: r - 1, c });
+        }
+        if (r < GRID_SIZE && isBoxComplete(r, c) && boxes[r][c] === null) {
+          completed.push({ r, c });
+        }
+      } else {
+        if (c > 0 && isBoxComplete(r, c - 1) && boxes[r][c - 1] === null) {
+          completed.push({ r, c: c - 1 });
+        }
+        if (c < GRID_SIZE && isBoxComplete(r, c) && boxes[r][c] === null) {
+          completed.push({ r, c });
+        }
+      }
+
+      return completed;
+    }
+
+    function markBox(r, c, player) {
+      boxes[r][c] = player;
+      const rect = document.getElementById(`box-${r}-${c}`);
+      const label = document.getElementById(`box-label-${r}-${c}`);
+      rect.classList.add(`claimed-p${player}`);
+
+      const name = (player === 1) ? player1Name : player2Name;
+      label.textContent = name.charAt(0).toUpperCase();
+      label.classList.add('visible');
+    }
+
+    function unmarkBox(r, c) {
+      boxes[r][c] = null;
+      const rect = document.getElementById(`box-${r}-${c}`);
+      const label = document.getElementById(`box-label-${r}-${c}`);
+      rect.classList.remove('claimed-p1', 'claimed-p2');
+      label.textContent = '';
+      label.classList.remove('visible');
+    }
+
+    function undoLastMove() {
+      if (moveHistory.length === 0) return;
+
+      const lastMove = moveHistory.pop();
+      const { type, r, c, player, capturedBoxes } = lastMove;
+
+      const arr = (type === 'h') ? horizontalEdges : verticalEdges;
+      arr[r][c] = null;
+
+      const line = document.getElementById(`line-${type}-${r}-${c}`);
+      line.classList.remove('claimed-p1', 'claimed-p2');
+
+      if (capturedBoxes.length > 0) {
+        capturedBoxes.forEach(b => unmarkBox(b.r, b.c));
+        scores[player] -= capturedBoxes.length;
+      }
+
+      currentPlayer = player;
+      isGameOver = false;
+
+      updateUI();
+    }
+
+    function updateUI() {
+      score1El.textContent = scores[1];
+      score2El.textContent = scores[2];
+      undoBtn.disabled = moveHistory.length === 0;
+
+      if (isGameOver) return;
+
+      const activeName = (currentPlayer === 1) ? player1Name : player2Name;
+      if (currentPlayer === 1) {
+        card1El.classList.add('active-p1');
+        card2El.classList.remove('active-p2');
+        statusMsg.textContent = `${activeName}'s turn`;
+        statusMsg.style.color = "var(--p1)";
+      } else {
+        card2El.classList.add('active-p2');
+        card1El.classList.remove('active-p1');
+        statusMsg.textContent = `${activeName}'s turn`;
+        statusMsg.style.color = "var(--p2)";
+      }
+    }
+
+    function endGame() {
+      card1El.classList.remove('active-p1');
+      card2El.classList.remove('active-p2');
+
+      if (scores[1] > scores[2]) {
+        statusMsg.textContent = `🎉 ${player1Name} Wins!`;
+        statusMsg.style.color = "var(--p1)";
+      } else if (scores[2] > scores[1]) {
+        statusMsg.textContent = `🎉 ${player2Name} Wins!`;
+        statusMsg.style.color = "var(--p2)";
+      } else {
+        statusMsg.textContent = "It's a Tie!";
+        statusMsg.style.color = "#ffffff";
+      }
+    }
+
+    startNewGame();
+  </script>
+</body>
+</html>
