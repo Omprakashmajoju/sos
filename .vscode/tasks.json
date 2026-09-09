@@ -1,0 +1,29 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Push latest game updates",
+			"type": "shell",
+			"command": "git add . && git commit -m \"Add win popups and XO AI mode\" && git push origin HEAD:main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Push latest game updates",
+			"type": "shell",
+			"command": "git add .; git commit -m \"Add win popups and XO AI mode\"; git push origin HEAD:main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Push latest game updates",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -File .\\push.ps1",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

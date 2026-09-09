@@ -17,6 +17,8 @@
       --text: #ecf3ff;
       --muted: #bfd0ea;
       --line: rgba(148, 163, 184, 0.2);
+      --success: #34d399;
+      --shadow: rgba(15, 23, 42, 0.55);
     }
 
     * { box-sizing: border-box; }
@@ -42,7 +44,7 @@
       border: 1px solid var(--line);
       border-radius: 28px;
       padding: 24px 20px 20px;
-      box-shadow: 0 24px 70px rgba(15, 23, 42, 0.5);
+      box-shadow: 0 24px 70px var(--shadow);
       backdrop-filter: blur(8px);
     }
 
@@ -80,7 +82,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
       padding: 12px 14px;
       border-radius: 16px;
       background: rgba(255,255,255,0.04);
@@ -97,6 +99,31 @@
     .status-text {
       font-size: 1.12rem;
       font-weight: 800;
+    }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .mode-btn {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .mode-btn.active {
+      background: linear-gradient(135deg, rgba(96,165,250,0.22), rgba(139,92,246,0.28));
+      border-color: rgba(96, 165, 250, 0.7);
+      box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
     }
 
     .board {
@@ -126,9 +153,9 @@
     .cell.x { color: var(--primary-x); }
     .cell.o { color: var(--primary-o); }
     .cell.win {
-      background: rgba(34, 197, 94, 0.12);
-      border-color: rgba(34, 197, 94, 0.7);
-      box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.5);
+      background: rgba(52, 211, 153, 0.12);
+      border-color: rgba(52, 211, 153, 0.75);
+      box-shadow: inset 0 0 0 1px rgba(52, 211, 153, 0.45);
     }
 
     .cell:disabled {
@@ -165,6 +192,53 @@
       border: 1px solid var(--line);
     }
 
+    .celebration-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      z-index: 20;
+    }
+
+    .celebration-modal.hidden {
+      display: none;
+    }
+
+    .celebration-card {
+      width: min(360px, calc(100vw - 32px));
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      border-radius: 22px;
+      padding: 26px 20px 20px;
+      text-align: center;
+      box-shadow: 0 20px 64px rgba(15, 23, 42, 0.6);
+    }
+
+    .celebration-icon {
+      font-size: 3rem;
+      margin-bottom: 10px;
+    }
+
+    .celebration-title {
+      margin: 0;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      color: var(--success);
+    }
+
+    .celebration-subtitle {
+      margin: 10px 0 18px;
+      color: var(--muted);
+      font-size: 0.96rem;
+    }
+
+    .celebration-card .primary-btn {
+      width: 100%;
+      margin-top: 6px;
+    }
+
     @media (max-width: 480px) {
       .app {
         padding: 18px 14px 16px;
@@ -194,6 +268,11 @@
       <span id="status-text" class="status-text">Player X</span>
     </div>
 
+    <div class="mode-switch" aria-label="Game mode selector">
+      <button class="mode-btn active" data-mode="pvp" type="button">Player vs Player</button>
+      <button class="mode-btn" data-mode="ai" type="button">Player vs AI</button>
+    </div>
+
     <div id="board" class="board" aria-label="Tic-Tac-Toe game board"></div>
 
     <div class="controls">
@@ -202,11 +281,25 @@
     </div>
   </div>
 
+  <div id="celebration-modal" class="celebration-modal hidden" aria-live="polite">
+    <div class="celebration-card">
+      <div class="celebration-icon">🎉</div>
+      <h2 id="celebration-title" class="celebration-title">Player X Wins!</h2>
+      <p id="celebration-subtitle" class="celebration-subtitle">Great play.</p>
+      <button id="celebration-btn" class="primary-btn" type="button">Play Again</button>
+    </div>
+  </div>
+
   <script>
     const boardEl = document.getElementById('board');
     const statusText = document.getElementById('status-text');
     const restartBtn = document.getElementById('restart-btn');
     const resetBtn = document.getElementById('reset-btn');
+    const celebrationModal = document.getElementById('celebration-modal');
+    const celebrationTitle = document.getElementById('celebration-title');
+    const celebrationSubtitle = document.getElementById('celebration-subtitle');
+    const celebrationBtn = document.getElementById('celebration-btn');
+    const modeButtons = document.querySelectorAll('.mode-btn');
 
     const winningPatterns = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -218,6 +311,18 @@
     let currentPlayer = 'X';
     let gameOver = false;
     let winningLine = [];
+    let gameMode = 'pvp';
+    let aiThinking = false;
+
+    function showCelebration(title, subtitle) {
+      celebrationTitle.textContent = title;
+      celebrationSubtitle.textContent = subtitle;
+      celebrationModal.classList.remove('hidden');
+    }
+
+    function hideCelebration() {
+      celebrationModal.classList.add('hidden');
+    }
 
     function createBoard() {
       boardEl.innerHTML = '';
@@ -227,7 +332,7 @@
         cell.type = 'button';
         cell.setAttribute('aria-label', `Cell ${index + 1}`);
         cell.textContent = value;
-        cell.disabled = value !== '' || gameOver;
+        cell.disabled = value !== '' || gameOver || (gameMode === 'ai' && currentPlayer === 'O' && aiThinking);
         if (value === 'X') cell.classList.add('x');
         if (value === 'O') cell.classList.add('o');
         if (winningLine.includes(index)) cell.classList.add('win');
@@ -241,26 +346,25 @@
       statusText.textContent = message;
     }
 
-    function getWinner() {
+    function getWinnerState(state = board) {
       for (const pattern of winningPatterns) {
         const [a, b, c] = pattern;
-        if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-          return { winner: board[a], line: pattern };
+        if (state[a] && state[a] === state[b] && state[a] === state[c]) {
+          return { winner: state[a], line: pattern };
         }
       }
       return null;
     }
 
-    function handleMove(index) {
-      if (board[index] || gameOver) return;
-
-      board[index] = currentPlayer;
-      const result = getWinner();
+    function finishTurn() {
+      const result = getWinnerState();
 
       if (result) {
         winningLine = result.line;
         gameOver = true;
-        updateStatus(`Player ${result.winner} wins!`);
+        const winnerName = result.winner === 'X' ? 'Player X' : (gameMode === 'ai' ? 'Computer' : 'Player O');
+        updateStatus(`${winnerName} wins!`);
+        showCelebration(`${winnerName} wins!`, 'A brilliant finish.');
         createBoard();
         return;
       }
@@ -268,13 +372,105 @@
       if (board.every(Boolean)) {
         gameOver = true;
         updateStatus("It's a draw!");
+        showCelebration('Draw Game', 'No moves left on the board.');
         createBoard();
         return;
       }
 
       currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-      updateStatus(`Player ${currentPlayer}`);
+      updateStatus(gameMode === 'ai' && currentPlayer === 'O' ? 'Computer is thinking...' : `Player ${currentPlayer}`);
       createBoard();
+
+      if (gameMode === 'ai' && currentPlayer === 'O' && !gameOver) {
+        scheduleAiMove();
+      }
+    }
+
+    function handleMove(index) {
+      if (board[index] || gameOver) return;
+      if (gameMode === 'ai' && currentPlayer === 'O') return;
+
+      board[index] = currentPlayer;
+      finishTurn();
+    }
+
+    function minimax(state, depth, isMaximizing) {
+      const result = getWinnerState(state);
+      if (result && result.winner === 'O') return 10 - depth;
+      if (result && result.winner === 'X') return depth - 10;
+      if (state.every(Boolean)) return 0;
+
+      if (isMaximizing) {
+        let bestScore = -Infinity;
+        for (let i = 0; i < state.length; i++) {
+          if (state[i]) continue;
+          state[i] = 'O';
+          const score = minimax(state, depth + 1, false);
+          state[i] = '';
+          bestScore = Math.max(bestScore, score);
+        }
+        return bestScore;
+      }
+
+      let bestScore = Infinity;
+      for (let i = 0; i < state.length; i++) {
+        if (state[i]) continue;
+        state[i] = 'X';
+        const score = minimax(state, depth + 1, true);
+        state[i] = '';
+        bestScore = Math.min(bestScore, score);
+      }
+      return bestScore;
+    }
+
+    function chooseAiMove() {
+      let bestScore = -Infinity;
+      let bestMove = null;
+
+      for (let i = 0; i < board.length; i++) {
+        if (board[i]) continue;
+
+        board[i] = 'O';
+        const score = minimax(board, 0, false);
+        board[i] = '';
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = i;
+        }
+      }
+
+      return bestMove;
+    }
+
+    function scheduleAiMove() {
+      if (gameMode !== 'ai' || gameOver || currentPlayer !== 'O') return;
+
+      aiThinking = true;
+      updateStatus('Computer is thinking...');
+      createBoard();
+
+      setTimeout(() => {
+        if (gameOver) return;
+
+        const move = chooseAiMove();
+        aiThinking = false;
+
+        if (move === null || board[move]) {
+          return;
+        }
+
+        board[move] = 'O';
+        finishTurn();
+      }, 550);
+    }
+
+    function setGameMode(mode) {
+      gameMode = mode;
+      modeButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.mode === mode);
+      });
+      resetBoard();
     }
 
     function resetBoard() {
@@ -282,12 +478,23 @@
       currentPlayer = 'X';
       gameOver = false;
       winningLine = [];
-      updateStatus('Player X');
+      aiThinking = false;
+      hideCelebration();
+      updateStatus(gameMode === 'ai' ? 'Player X' : 'Player X');
       createBoard();
+
+      if (gameMode === 'ai') {
+        updateStatus('Player X');
+      }
     }
 
     restartBtn.addEventListener('click', resetBoard);
     resetBtn.addEventListener('click', resetBoard);
+    celebrationBtn.addEventListener('click', resetBoard);
+    modeButtons.forEach((button) => {
+      button.addEventListener('click', () => setGameMode(button.dataset.mode));
+    });
+
     resetBoard();
   </script>
 </body>

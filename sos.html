@@ -266,6 +266,49 @@
     button:not(:disabled):active {
       filter: brightness(1.15);
     }
+
+    .celebration-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 18px;
+    }
+
+    .celebration-modal.hidden {
+      display: none;
+    }
+
+    .celebration-card {
+      width: min(360px, calc(100vw - 32px));
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.26);
+      border-radius: 22px;
+      padding: 26px 20px 20px;
+      text-align: center;
+      box-shadow: 0 20px 64px rgba(15, 23, 42, 0.6);
+    }
+
+    .celebration-card h2 {
+      margin: 10px 0 8px;
+      color: #34d399;
+      font-size: clamp(1.5rem, 4vw, 2rem);
+    }
+
+    .celebration-card p {
+      margin: 0 0 18px;
+      color: #94a3b8;
+      font-size: 0.95rem;
+    }
+
+    .celebration-icon {
+      font-size: 3rem;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -314,6 +357,15 @@
     </div>
   </div>
 
+  <div id="celebration-modal" class="celebration-modal hidden" aria-live="polite">
+    <div class="celebration-card">
+      <div class="celebration-icon">🎉</div>
+      <h2 id="celebration-title">Player 1 Wins!</h2>
+      <p id="celebration-subtitle">Great game.</p>
+      <button type="button" class="primary-btn" onclick="hideCelebration(); resetCurrentGame();">Play Again</button>
+    </div>
+  </div>
+
   <script>
     let GRID_SIZE = 3;
     let player1Name = "Player 1";
@@ -340,6 +392,9 @@
     const p2Input = document.getElementById('p2-input');
     const sizeInput = document.getElementById('grid-size-input');
     const undoBtn = document.getElementById('undo-btn');
+    const celebrationModal = document.getElementById('celebration-modal');
+    const celebrationTitle = document.getElementById('celebration-title');
+    const celebrationSubtitle = document.getElementById('celebration-subtitle');
 
     // SVG Layout Constants
     const SVG_DIM = 400;
@@ -347,6 +402,16 @@
 
     function getStep() {
       return (SVG_DIM - PAD * 2) / GRID_SIZE;
+    }
+
+    function showCelebration(title, subtitle) {
+      celebrationTitle.textContent = title;
+      celebrationSubtitle.textContent = subtitle;
+      celebrationModal.classList.remove('hidden');
+    }
+
+    function hideCelebration() {
+      celebrationModal.classList.add('hidden');
     }
 
     function startNewGame() {
@@ -653,12 +718,15 @@
       if (scores[1] > scores[2]) {
         statusMsg.textContent = `🎉 ${player1Name} Wins!`;
         statusMsg.style.color = "var(--p1)";
+        showCelebration(`${player1Name} Wins!`, 'Fantastic finish.');
       } else if (scores[2] > scores[1]) {
         statusMsg.textContent = `🎉 ${player2Name} Wins!`;
         statusMsg.style.color = "var(--p2)";
+        showCelebration(`${player2Name} Wins!`, 'Fantastic finish.');
       } else {
         statusMsg.textContent = "It's a Tie!";
         statusMsg.style.color = "#ffffff";
+        showCelebration("It's a Tie!", 'No winner this round.');
       }
     }
 
