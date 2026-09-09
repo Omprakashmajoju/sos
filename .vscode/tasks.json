@@ -24,6 +24,62 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "Deploy to GitHub Pages",
+			"type": "shell",
+			"command": "git add .; git commit -m \"Fix SOS AI mode and layout\"; git push origin HEAD:main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "GitHub deploy final",
+			"type": "shell",
+			"command": "git add . && git commit -m Fix-SOS-AI-mode-layout && git push origin HEAD:main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "GitHub deploy final",
+			"type": "shell",
+			"command": "git add .; git commit -m Fix-SOS-AI-mode-layout; git push origin HEAD:main",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Push GitHub changes",
+			"type": "shell",
+			"command": "powershell -NoProfile -File .\\push.ps1",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Push GitHub changes",
+			"type": "shell",
+			"command": "powershell -ExecutionPolicy Bypass -NoProfile -File .\\push.ps1",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Push GitHub changes",
+			"type": "shell",
+			"command": "powershell -Command \"Set-ExecutionPolicy -Scope Process Bypass; . .\\push.ps1\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Push GitHub changes",
+			"type": "shell",
+			"command": "cmd /c \"git add . & git commit -m Fix-SOS-AI-mode-layout & git push origin HEAD:main\"",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }

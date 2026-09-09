@@ -194,12 +194,14 @@
     }
 
     .inputs-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 82px;
       gap: 8px;
+      align-items: end;
     }
 
     .input-field {
-      flex: 1;
+      min-width: 0;
       display: flex;
       flex-direction: column;
       gap: 4px;
@@ -213,7 +215,14 @@
       font-weight: 600;
     }
 
+    .input-field.size-field {
+      width: 82px;
+      min-width: 82px;
+      justify-self: end;
+    }
+
     input[type="text"], input[type="number"] {
+      width: 100%;
       user-select: text;
       -webkit-user-select: text;
       background: var(--surface-light);
@@ -227,7 +236,7 @@
     }
 
     input[type="number"] {
-      width: 65px;
+      width: 100%;
       text-align: center;
     }
 
@@ -238,10 +247,12 @@
     .buttons-row {
       display: flex;
       gap: 8px;
+      flex-wrap: wrap;
     }
 
     button {
-      flex: 1;
+      flex: 1 1 0;
+      min-width: 0;
       padding: 10px 14px;
       border: none;
       border-radius: 8px;
@@ -251,6 +262,21 @@
       font-weight: 600;
       cursor: pointer;
       transition: background 0.15s, opacity 0.15s;
+    }
+
+    @media (max-width: 420px) {
+      .inputs-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .input-field.size-field {
+        grid-column: 2;
+        justify-self: end;
+      }
+
+      .buttons-row {
+        flex-direction: column;
+      }
     }
 
     button.primary-btn {
@@ -309,6 +335,34 @@
       font-size: 3rem;
       margin-bottom: 8px;
     }
+
+    .mode-switch {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+      max-width: 440px;
+      margin: 10px 0 12px;
+    }
+
+    .mode-btn {
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      background: rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 9px 10px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .mode-btn.active {
+      background: rgba(59, 130, 246, 0.18);
+      border-color: rgba(96, 165, 250, 0.75);
+      box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.18);
+    }
   </style>
 </head>
 <body>
@@ -335,6 +389,11 @@
     <svg id="game-svg" viewBox="0 0 400 400"></svg>
   </div>
 
+  <div class="mode-switch" aria-label="Game mode selector">
+    <button class="mode-btn active" data-mode="pvp" type="button">Player vs Player</button>
+    <button class="mode-btn" data-mode="ai" type="button">Player vs AI</button>
+  </div>
+
   <div class="controls-panel">
     <div class="inputs-row">
       <div class="input-field">
@@ -345,7 +404,7 @@
         <label for="p2-input">P2 Name</label>
         <input type="text" id="p2-input" value="Player 2" maxlength="12" />
       </div>
-      <div class="input-field" style="flex: 0;">
+      <div class="input-field size-field">
         <label for="grid-size-input">Size</label>
         <input type="number" id="grid-size-input" value="3" min="2" max="20" />
       </div>
@@ -373,6 +432,8 @@
     let currentPlayer = 1;
     let scores = { 1: 0, 2: 0 };
     let isGameOver = false;
+    let gameMode = 'pvp';
+    let aiThinking = false;
 
     let horizontalEdges = [];
     let verticalEdges = [];
@@ -395,6 +456,11 @@
     const celebrationModal = document.getElementById('celebration-modal');
     const celebrationTitle = document.getElementById('celebration-title');
     const celebrationSubtitle = document.getElementById('celebration-subtitle');
+    const modeButtons = document.querySelectorAll('.mode-btn');
+
+    modeButtons.forEach((button) => {
+      button.addEventListener('click', () => setGameMode(button.dataset.mode));
+    });
 
     // SVG Layout Constants
     const SVG_DIM = 400;
@@ -414,9 +480,26 @@
       celebrationModal.classList.add('hidden');
     }
 
+    function setGameMode(mode) {
+      gameMode = mode;
+      modeButtons.forEach(button => {
+        button.classList.toggle('active', button.dataset.mode === mode);
+      });
+
+      if (mode === 'ai') {
+        player2Name = 'Computer';
+        p2Input.value = 'Computer';
+      } else {
+        player2Name = p2Input.value.trim() || 'Player 2';
+      }
+
+      startNewGame();
+    }
+
     function startNewGame() {
+      hideCelebration();
       player1Name = p1Input.value.trim() || "Player 1";
-      player2Name = p2Input.value.trim() || "Player 2";
+      player2Name = gameMode === 'ai' ? 'Computer' : (p2Input.value.trim() || "Player 2");
       label1El.textContent = player1Name;
       label2El.textContent = player2Name;
 
@@ -437,6 +520,7 @@
       currentPlayer = 1;
       scores = { 1: 0, 2: 0 };
       isGameOver = false;
+      aiThinking = false;
       moveHistory = [];
 
       horizontalEdges = Array.from({ length: GRID_SIZE + 1 }, () => Array(GRID_SIZE).fill(null));
@@ -579,9 +663,68 @@
       claimEdge(targetType, targetR, targetC);
     });
 
+    function getLegalMoves() {
+      const moves = [];
+      for (let r = 0; r <= GRID_SIZE; r++) {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          if (horizontalEdges[r][c] === null) moves.push({ type: 'h', r, c });
+        }
+      }
+      for (let r = 0; r < GRID_SIZE; r++) {
+        for (let c = 0; c <= GRID_SIZE; c++) {
+          if (verticalEdges[r][c] === null) moves.push({ type: 'v', r, c });
+        }
+      }
+      return moves;
+    }
+
+    function chooseAiMove() {
+      const legalMoves = getLegalMoves();
+      if (!legalMoves.length) return null;
+
+      let bestMove = legalMoves[0];
+      let bestScore = -Infinity;
+
+      legalMoves.forEach((move) => {
+        const { type, r, c } = move;
+        const arr = type === 'h' ? horizontalEdges : verticalEdges;
+        const previousValue = arr[r][c];
+        arr[r][c] = 2;
+
+        const immediatelyCaptured = getCompletedBoxes(type, r, c).length;
+        const score = immediatelyCaptured * 50 + (Math.random() * 5);
+
+        arr[r][c] = previousValue;
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestMove = move;
+        }
+      });
+
+      return bestMove;
+    }
+
+    function scheduleAiMove() {
+      if (gameMode !== 'ai' || isGameOver || currentPlayer !== 2) return;
+
+      aiThinking = true;
+      updateUI();
+
+      setTimeout(() => {
+        if (isGameOver) return;
+        const move = chooseAiMove();
+        aiThinking = false;
+
+        if (move) {
+          claimEdge(move.type, move.r, move.c);
+        }
+      }, 500);
+    }
+
     function claimEdge(type, r, c) {
       const arr = (type === 'h') ? horizontalEdges : verticalEdges;
-      if (arr[r][c] !== null) return; // Already claimed
+      if (arr[r][c] !== null || isGameOver) return; // Already claimed
 
       const playerWhoMoved = currentPlayer;
       arr[r][c] = playerWhoMoved;
@@ -615,6 +758,10 @@
       }
 
       updateUI();
+
+      if (gameMode === 'ai' && currentPlayer === 2 && !isGameOver) {
+        scheduleAiMove();
+      }
     }
 
     function getCompletedBoxes(type, r, c) {
@@ -701,12 +848,12 @@
       if (currentPlayer === 1) {
         card1El.classList.add('active-p1');
         card2El.classList.remove('active-p2');
-        statusMsg.textContent = `${activeName}'s turn`;
+        statusMsg.textContent = aiThinking ? 'Computer is thinking...' : `${activeName}'s turn`;
         statusMsg.style.color = "var(--p1)";
       } else {
         card2El.classList.add('active-p2');
         card1El.classList.remove('active-p1');
-        statusMsg.textContent = `${activeName}'s turn`;
+        statusMsg.textContent = gameMode === 'ai' ? "Computer's turn" : `${activeName}'s turn`;
         statusMsg.style.color = "var(--p2)";
       }
     }
