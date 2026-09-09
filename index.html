@@ -2,925 +2,191 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Dots and Boxes</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MAJOJU's Gaming Studio</title>
   <style>
     :root {
       --bg: #0f172a;
-      --surface: #1e293b;
-      --surface-light: #334155;
-      --p1: #38bdf8;       /* Blue */
-      --p2: #f43f5e;       /* Rose Red */
-      --grid-line: #334155;
-      --dot: #94a3b8;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
+      --bg-2: #111827;
+      --panel: rgba(15, 23, 42, 0.72);
+      --panel-strong: #1f2937;
+      --primary: #8b5cf6;
+      --secondary: #38bdf8;
+      --accent: #f59e0b;
+      --text: #e5eefb;
+      --muted: #bfd0ea;
+      --line: rgba(148, 163, 184, 0.22);
+      --shadow: rgba(15, 23, 42, 0.5);
     }
 
-    * {
-      box-sizing: border-box;
-      touch-action: manipulation;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      overscroll-behavior: none;
-    }
+    * { box-sizing: border-box; }
 
     body {
-      padding: max(10px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom));
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(139, 92, 246, 0.28), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.22), transparent 28%),
+        linear-gradient(135deg, var(--bg), var(--bg-2));
       color: var(--text);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      height: 100dvh;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    header {
-      width: 100%;
-      max-width: 400px;
-      text-align: center;
-      flex-shrink: 0;
-    }
-
-    /* Compact Player Scoreboard */
-    .scoreboard {
-      display: flex;
-      justify-content: space-between;
-      margin: 2px 0 4px 0;
-      gap: 8px;
-    }
-
-    .player-card {
-      flex: 1;
-      min-width: 0;
-      padding: 4px 8px;
-      border-radius: 8px;
-      background: var(--surface);
-      border: 1.5px solid transparent;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .player-card.active-p1 {
-      border-color: var(--p1);
-      box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
-    }
-
-    .player-card.active-p2 {
-      border-color: var(--p2);
-      box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
-    }
-
-    .player-title {
-      font-size: 0.78rem;
-      font-weight: 700;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      padding-right: 4px;
-    }
-
-    .p1-text { color: var(--p1); }
-    .p2-text { color: var(--p2); }
-
-    .score {
-      font-size: 1.25rem;
-      font-weight: 800;
-      line-height: 1;
-    }
-
-    #status-msg {
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin-bottom: 2px;
-      min-height: 1rem;
-    }
-
-    /* Auto-Fitting Board Area */
-    #board-container {
-      width: min(82vw, 360px);
-      height: min(82vw, 360px);
-      max-width: 400px;
-      max-height: 400px;
-      margin: auto 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0b1120;
-      border-radius: 12px;
-      padding: 6px;
-      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
-      cursor: pointer;
-      flex-shrink: 0;
-      touch-action: none;
-      -webkit-user-select: none;
-      user-select: none;
+      padding: 28px 18px;
     }
 
-    svg {
-      width: 100%;
-      height: 100%;
-      display: block;
-      overflow: visible;
-      pointer-events: none;
+    .studio-shell {
+      width: min(1100px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      box-shadow: 0 22px 70px var(--shadow);
+      padding: 32px 24px 28px;
+      backdrop-filter: blur(8px);
     }
 
-    .edge {
-      stroke: var(--grid-line);
-      stroke-linecap: round;
-      transition: stroke 0.15s ease;
-    }
-
-    .edge.claimed-p1 { stroke: var(--p1); }
-    .edge.claimed-p2 { stroke: var(--p2); }
-
-    .box-rect {
-      opacity: 0;
-      transition: fill 0.2s ease, opacity 0.2s ease;
-    }
-
-    .box-rect.claimed-p1 { fill: var(--p1); opacity: 0.28; }
-    .box-rect.claimed-p2 { fill: var(--p2); opacity: 0.28; }
-
-    .box-label {
-      font-weight: 800;
-      fill: var(--text);
-      text-anchor: middle;
-      dominant-baseline: central;
-      opacity: 0;
-    }
-
-    .box-label.visible { opacity: 1; }
-
-    .dot {
-      fill: var(--dot);
-    }
-
-    /* Controls Panel */
-    .controls-panel {
-      width: 100%;
-      max-width: 400px;
-      background: var(--surface);
-      border-radius: 10px;
-      padding: 8px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-shrink: 0;
-      margin-bottom: env(safe-area-inset-bottom, 0px);
-    }
-
-    .inputs-row {
-      display: flex;
-      gap: 6px;
-      width: 100%;
-    }
-
-    .input-field {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-
-    .input-field.grow {
-      flex: 1;
-    }
-
-    .input-field.fixed-size {
-      width: 52px;
-      flex-shrink: 0;
-    }
-
-    .input-field label {
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      font-weight: 600;
-    }
-
-    input[type="text"], input[type="number"] {
-      width: 100%;
-      user-select: text;
-      -webkit-user-select: text;
-      background: var(--surface-light);
-      border: 1px solid #475569;
-      border-radius: 5px;
-      padding: 5px 6px;
-      color: var(--text);
-      font-size: 0.78rem;
-      font-weight: 600;
-      outline: none;
-    }
-
-    input[type="number"] {
+    .hero {
       text-align: center;
-      -moz-appearance: textfield;
+      margin-bottom: 28px;
     }
 
-    input[type="number"]::-webkit-outer-spin-button,
-    input[type="number"]::-webkit-inner-spin-button {
-      -webkit-appearance: none;
+    .eyebrow {
+      margin: 0 0 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--secondary);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    h1 {
       margin: 0;
+      font-size: clamp(2.3rem, 4vw, 4rem);
+      line-height: 1.1;
+      letter-spacing: -0.04em;
     }
 
-    input:focus {
-      border-color: var(--p1);
+    .subtitle {
+      margin: 14px auto 0;
+      max-width: 640px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.6;
     }
 
-    .buttons-row {
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 22px;
+      margin-top: 18px;
+    }
+
+    .game-card {
+      position: relative;
       display: flex;
-      gap: 6px;
-    }
-
-    .mode-selector {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 4px;
-    }
-
-    .mode-btn {
-      flex: 1;
-      min-height: 38px;
-      background: var(--surface-light);
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 260px;
+      padding: 22px 20px 18px;
+      border-radius: 24px;
+      text-decoration: none;
       color: var(--text);
-      border: 1px solid transparent;
+      background: linear-gradient(135deg, rgba(31, 41, 55, 0.92), rgba(15, 23, 42, 0.92));
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    .mode-btn.active {
-      background: #1d4ed8;
-      border-color: rgba(148, 163, 184, 0.5);
+    .game-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(139, 92, 246, 0.75);
+      box-shadow: 0 18px 35px rgba(139, 92, 246, 0.14);
     }
 
-    button {
-      flex: 1;
-      min-height: 42px;
-      padding: 7px 8px;
-      border: none;
-      border-radius: 6px;
-      background: var(--surface-light);
-      color: var(--text);
-      font-size: 0.78rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s, opacity 0.15s;
-      white-space: nowrap;
+    .game-card.sos {
+      background: linear-gradient(135deg, rgba(15, 118, 110, 0.28), rgba(17, 24, 39, 0.96));
     }
 
-    button.primary-btn {
-      background: #2563eb;
-      color: #ffffff;
+    .game-card.xo {
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.24), rgba(17, 24, 39, 0.96));
     }
 
-    button:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
+    .badge {
+      align-self: flex-start;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
     }
 
-    button:not(:disabled):active {
-      filter: brightness(1.15);
+    .game-card h2 {
+      margin: 18px 0 10px;
+      font-size: clamp(2rem, 3vw, 2.6rem);
+      letter-spacing: -0.05em;
     }
 
-    @media (max-width: 480px) {
-      body {
-        padding: 8px 10px 12px;
+    .game-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.98rem;
+    }
+
+    .action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 22px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--primary), #6366f1);
+      color: white;
+      width: fit-content;
+      min-width: 140px;
+    }
+
+    @media (max-width: 640px) {
+      .studio-shell {
+        padding: 22px 16px 18px;
+        border-radius: 20px;
       }
 
-      .scoreboard {
-        gap: 6px;
-      }
-
-      .player-card {
-        padding: 5px 6px;
-      }
-
-      .player-title {
-        font-size: 0.7rem;
-      }
-
-      .score {
-        font-size: 1.1rem;
-      }
-
-      #status-msg {
-        font-size: 0.75rem;
-      }
-
-      #board-container {
-        width: min(88vw, 340px);
-        height: min(88vw, 340px);
-      }
-
-      .controls-panel {
-        padding: 8px;
-      }
-
-      .inputs-row {
-        gap: 5px;
-      }
-
-      .input-field label {
-        font-size: 0.6rem;
-      }
-
-      input[type="text"], input[type="number"] {
-        font-size: 0.75rem;
-        padding: 6px 7px;
-      }
-
-      .buttons-row {
-        gap: 5px;
-      }
-
-      button {
-        min-height: 40px;
-        font-size: 0.72rem;
+      .game-card {
+        min-height: 220px;
       }
     }
   </style>
 </head>
 <body>
+  <div class="studio-shell">
+    <header class="hero">
+      <p class="eyebrow">Game Arena</p>
+      <h1>MAJOJU's Gaming Studio</h1>
+      <p class="subtitle">Pick a game and jump in. More games will be added here soon.</p>
+    </header>
 
-  <header>
-    <div class="scoreboard">
-      <div id="card-p1" class="player-card active-p1">
-        <span id="label-p1" class="player-title p1-text">Player 1</span>
-        <span id="score-p1" class="score p1-text">0</span>
-      </div>
-      <div id="card-p2" class="player-card">
-        <span id="label-p2" class="player-title p2-text">Player 2</span>
-        <span id="score-p2" class="score p2-text">0</span>
-      </div>
-    </div>
-    <div id="status-msg">Player 1's turn</div>
-  </header>
+    <main class="game-grid">
+      <a class="game-card sos" href="sos.html">
+        <span class="badge">Classic</span>
+        <h2>SOS</h2>
+        <p>Make sequences, claim boxes, and outsmart your opponent with smart line choices.</p>
+        <span class="action">Play SOS</span>
+      </a>
 
-  <div id="board-container">
-    <svg id="game-svg" viewBox="0 0 400 400"></svg>
+      <a class="game-card xo" href="xo.html">
+        <span class="badge">Classic</span>
+        <h2>XO</h2>
+        <p>Take turns, complete a row, and win the match before your rival does.</p>
+        <span class="action">Play XO</span>
+      </a>
+    </main>
   </div>
-
-  <div class="controls-panel">
-    <div class="mode-selector">
-      <button class="mode-btn active" data-mode="single">Single Player</button>
-      <button class="mode-btn" data-mode="two">2 Players</button>
-    </div>
-    <div class="inputs-row">
-      <div class="input-field grow">
-        <label for="p1-input">P1 Name</label>
-        <input type="text" id="p1-input" value="Player 1" maxlength="10" />
-      </div>
-      <div class="input-field grow">
-        <label for="p2-input">P2 Name</label>
-        <input type="text" id="p2-input" value="AI" maxlength="10" />
-      </div>
-      <div class="input-field fixed-size">
-        <label for="grid-size-input">Size</label>
-        <input type="number" id="grid-size-input" value="3" min="2" max="20" />
-      </div>
-    </div>
-    <div class="buttons-row">
-      <button class="primary-btn" onclick="startNewGame()">Apply</button>
-      <button id="undo-btn" onclick="undoLastMove()" disabled>Undo</button>
-      <button onclick="resetCurrentGame()">Restart</button>
-    </div>
-  </div>
-
-  <script>
-    let GRID_SIZE = 3;
-    let player1Name = "Player 1";
-    let player2Name = "AI";
-    let currentPlayer = 1;
-    let scores = { 1: 0, 2: 0 };
-    let isGameOver = false;
-    let gameMode = 'single';
-    let isAiThinking = false;
-
-    let horizontalEdges = [];
-    let verticalEdges = [];
-    let boxes = [];
-    let moveHistory = [];
-
-    const boardContainer = document.getElementById('board-container');
-    const svg = document.getElementById('game-svg');
-    const score1El = document.getElementById('score-p1');
-    const score2El = document.getElementById('score-p2');
-    const label1El = document.getElementById('label-p1');
-    const label2El = document.getElementById('label-p2');
-    const card1El = document.getElementById('card-p1');
-    const card2El = document.getElementById('card-p2');
-    const statusMsg = document.getElementById('status-msg');
-    const p1Input = document.getElementById('p1-input');
-    const p2Input = document.getElementById('p2-input');
-    const sizeInput = document.getElementById('grid-size-input');
-    const undoBtn = document.getElementById('undo-btn');
-    const modeButtons = Array.from(document.querySelectorAll('.mode-btn'));
-
-    const SVG_DIM = 400;
-    const PAD = 25;
-
-    function setGameMode(mode) {
-      gameMode = mode;
-      modeButtons.forEach((btn) => {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-      });
-
-      if (gameMode === 'single') {
-        p2Input.disabled = true;
-        p2Input.value = 'AI';
-        player2Name = 'AI';
-      } else {
-        p2Input.disabled = false;
-        player2Name = p2Input.value.trim() || 'Player 2';
-        p2Input.value = player2Name;
-      }
-
-      label2El.textContent = player2Name;
-      initGame();
-    }
-
-    function getAllAvailableMoves() {
-      const moves = [];
-
-      for (let r = 0; r <= GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-          if (horizontalEdges[r][c] === null) {
-            moves.push({ type: 'h', r, c });
-          }
-        }
-      }
-
-      for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c <= GRID_SIZE; c++) {
-          if (verticalEdges[r][c] === null) {
-            moves.push({ type: 'v', r, c });
-          }
-        }
-      }
-
-      return moves;
-    }
-
-    function getCompletedBoxesForState(type, r, c, hState, vState, boxState) {
-      const completed = [];
-      const isBoxComplete = (row, col) => (
-        hState[row][col] !== null &&
-        hState[row + 1][col] !== null &&
-        vState[row][col] !== null &&
-        vState[row][col + 1] !== null
-      );
-
-      if (type === 'h') {
-        if (r > 0 && isBoxComplete(r - 1, c) && boxState[r - 1][c] === null) {
-          completed.push({ r: r - 1, c });
-        }
-        if (r < GRID_SIZE && isBoxComplete(r, c) && boxState[r][c] === null) {
-          completed.push({ r, c });
-        }
-      } else {
-        if (c > 0 && isBoxComplete(r, c - 1) && boxState[r][c - 1] === null) {
-          completed.push({ r, c: c - 1 });
-        }
-        if (c < GRID_SIZE && isBoxComplete(r, c) && boxState[r][c] === null) {
-          completed.push({ r, c });
-        }
-      }
-
-      return completed;
-    }
-
-    function chooseAiMove() {
-      const availableMoves = getAllAvailableMoves();
-      if (availableMoves.length === 0) return null;
-
-      const moveCount = moveHistory.length;
-      const shouldUseVariedOpening = moveCount <= 2;
-
-      if (shouldUseVariedOpening) {
-        const openingPool = availableMoves.filter((move) => {
-          const centralBias = move.r === 0 || move.r === GRID_SIZE || move.c === 0 || move.c === GRID_SIZE;
-          return centralBias || (move.type === 'h' && move.r % 2 === 0) || (move.type === 'v' && move.c % 2 === 0);
-        });
-        const shuffled = [...openingPool].sort(() => Math.random() - 0.5);
-        if (shuffled.length) return shuffled[0];
-      }
-
-      let bestMove = null;
-      let bestScore = -Infinity;
-
-      for (const move of availableMoves) {
-        const hCopy = horizontalEdges.map((row) => row.slice());
-        const vCopy = verticalEdges.map((row) => row.slice());
-        const boxCopy = boxes.map((row) => row.slice());
-
-        if (move.type === 'h') {
-          hCopy[move.r][move.c] = 2;
-        } else {
-          vCopy[move.r][move.c] = 2;
-        }
-
-        const captured = getCompletedBoxesForState(move.type, move.r, move.c, hCopy, vCopy, boxCopy);
-        let immediateGain = captured.length;
-
-        for (const box of captured) {
-          boxCopy[box.r][box.c] = 2;
-        }
-
-        let futureThreat = 0;
-        const oppMoves = [];
-
-        for (let r = 0; r <= GRID_SIZE; r++) {
-          for (let c = 0; c < GRID_SIZE; c++) {
-            if (hCopy[r][c] === null) oppMoves.push({ type: 'h', r, c });
-          }
-        }
-
-        for (let r = 0; r < GRID_SIZE; r++) {
-          for (let c = 0; c <= GRID_SIZE; c++) {
-            if (vCopy[r][c] === null) oppMoves.push({ type: 'v', r, c });
-          }
-        }
-
-        for (const oppMove of oppMoves) {
-          const oppH = hCopy.map((row) => row.slice());
-          const oppV = vCopy.map((row) => row.slice());
-          const oppBoxes = boxCopy.map((row) => row.slice());
-
-          if (oppMove.type === 'h') {
-            oppH[oppMove.r][oppMove.c] = 1;
-          } else {
-            oppV[oppMove.r][oppMove.c] = 1;
-          }
-
-          const oppCaptured = getCompletedBoxesForState(oppMove.type, oppMove.r, oppMove.c, oppH, oppV, oppBoxes);
-          futureThreat = Math.max(futureThreat, oppCaptured.length);
-        }
-
-        const score = immediateGain * 100 - futureThreat * 15 + (Math.random() * 8);
-        if (score > bestScore) {
-          bestScore = score;
-          bestMove = move;
-        }
-      }
-
-      return bestMove;
-    }
-
-    function triggerAiTurn() {
-      if (gameMode !== 'single' || currentPlayer !== 2 || isGameOver) return;
-
-      isAiThinking = true;
-      statusMsg.textContent = 'AI is thinking...';
-      statusMsg.style.color = 'var(--p2)';
-
-      const aiDelay = moveHistory.length < 3 ? 700 : 450;
-      setTimeout(() => {
-        isAiThinking = false;
-        const move = chooseAiMove();
-        if (move) {
-          claimEdge(move.type, move.r, move.c);
-        }
-      }, aiDelay);
-    }
-
-    function getStep() {
-      return (SVG_DIM - PAD * 2) / GRID_SIZE;
-    }
-
-    function startNewGame() {
-      player1Name = p1Input.value.trim() || "Player 1";
-      if (gameMode === 'single') {
-        player2Name = 'AI';
-        p2Input.value = 'AI';
-      } else {
-        player2Name = p2Input.value.trim() || "Player 2";
-      }
-
-      label1El.textContent = player1Name;
-      label2El.textContent = player2Name;
-
-      let parsedSize = parseInt(sizeInput.value, 10);
-      if (isNaN(parsedSize) || parsedSize < 2) parsedSize = 2;
-      if (parsedSize > 20) parsedSize = 20;
-      GRID_SIZE = parsedSize;
-      sizeInput.value = GRID_SIZE;
-
-      initGame();
-    }
-
-    function resetCurrentGame() {
-      initGame();
-    }
-
-    function initGame() {
-      currentPlayer = 1;
-      scores = { 1: 0, 2: 0 };
-      isGameOver = false;
-      moveHistory = [];
-
-      horizontalEdges = Array.from({ length: GRID_SIZE + 1 }, () => Array(GRID_SIZE).fill(null));
-      verticalEdges = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE + 1).fill(null));
-      boxes = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(null));
-
-      renderBoard();
-      updateUI();
-    }
-
-    function renderBoard() {
-      svg.innerHTML = '';
-      const step = getStep();
-
-      const dotRadius = Math.max(2, Math.min(5.5, 14 / Math.sqrt(GRID_SIZE)));
-      const lineWidth = Math.max(2, Math.min(4.5, 12 / Math.sqrt(GRID_SIZE)));
-      const fontSize = Math.max(7, step * 0.45);
-
-      // 1. Box backgrounds & text
-      for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-          const x = PAD + c * step;
-          const y = PAD + r * step;
-
-          const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-          rect.setAttribute('x', x);
-          rect.setAttribute('y', y);
-          rect.setAttribute('width', step);
-          rect.setAttribute('height', step);
-          rect.setAttribute('id', `box-${r}-${c}`);
-          rect.setAttribute('class', 'box-rect');
-          svg.appendChild(rect);
-
-          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          text.setAttribute('x', x + step / 2);
-          text.setAttribute('y', y + step / 2);
-          text.setAttribute('font-size', `${fontSize}px`);
-          text.setAttribute('id', `box-label-${r}-${c}`);
-          text.setAttribute('class', 'box-label');
-          svg.appendChild(text);
-        }
-      }
-
-      // 2. Visible Horizontal Lines
-      for (let r = 0; r <= GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
-          const x1 = PAD + c * step;
-          const y1 = PAD + r * step;
-          createLine('h', r, c, x1, y1, x1 + step, y1, lineWidth);
-        }
-      }
-
-      // 3. Visible Vertical Lines
-      for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c <= GRID_SIZE; c++) {
-          const x1 = PAD + c * step;
-          const y1 = PAD + r * step;
-          createLine('v', r, c, x1, y1, x1, y1 + step, lineWidth);
-        }
-      }
-
-      // 4. Visual Dots
-      for (let r = 0; r <= GRID_SIZE; r++) {
-        for (let c = 0; c <= GRID_SIZE; c++) {
-          const cx = PAD + c * step;
-          const cy = PAD + r * step;
-          const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          dot.setAttribute('cx', cx);
-          dot.setAttribute('cy', cy);
-          dot.setAttribute('r', dotRadius);
-          dot.setAttribute('class', 'dot');
-          svg.appendChild(dot);
-        }
-      }
-    }
-
-    function createLine(type, r, c, x1, y1, x2, y2, width) {
-      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-      line.setAttribute('x1', x1);
-      line.setAttribute('y1', y1);
-      line.setAttribute('x2', x2);
-      line.setAttribute('y2', y2);
-      line.setAttribute('stroke-width', width);
-      line.setAttribute('id', `line-${type}-${r}-${c}`);
-      line.setAttribute('class', 'edge');
-      svg.appendChild(line);
-    }
-
-    // Mathematical coordinate detection: selects exact closest edge
-    boardContainer.addEventListener('pointerdown', (e) => {
-      if (isGameOver) return;
-
-      const rect = svg.getBoundingClientRect();
-      const scaleX = SVG_DIM / rect.width;
-      const scaleY = SVG_DIM / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-
-      const step = getStep();
-
-      if (x < PAD - step * 0.4 || x > SVG_DIM - PAD + step * 0.4 ||
-          y < PAD - step * 0.4 || y > SVG_DIM - PAD + step * 0.4) {
-        return;
-      }
-
-      const colNorm = (x - PAD) / step;
-      const rowNorm = (y - PAD) / step;
-
-      const nearestRowH = Math.round(rowNorm);
-      const nearestColH = Math.floor(colNorm);
-      const clampedRowH = Math.max(0, Math.min(GRID_SIZE, nearestRowH));
-      const clampedColH = Math.max(0, Math.min(GRID_SIZE - 1, nearestColH));
-      const distH = Math.abs(rowNorm - clampedRowH);
-
-      const nearestColV = Math.round(colNorm);
-      const nearestRowV = Math.floor(rowNorm);
-      const clampedColV = Math.max(0, Math.min(GRID_SIZE, nearestColV));
-      const clampedRowV = Math.max(0, Math.min(GRID_SIZE - 1, nearestRowV));
-      const distV = Math.abs(colNorm - clampedColV);
-
-      let targetType, targetR, targetC;
-      if (distH < distV) {
-        targetType = 'h';
-        targetR = clampedRowH;
-        targetC = clampedColH;
-      } else {
-        targetType = 'v';
-        targetR = clampedRowV;
-        targetC = clampedColV;
-      }
-
-      claimEdge(targetType, targetR, targetC);
-    });
-
-    function claimEdge(type, r, c) {
-      const arr = (type === 'h') ? horizontalEdges : verticalEdges;
-      if (arr[r][c] !== null) return;
-
-      const playerWhoMoved = currentPlayer;
-      arr[r][c] = playerWhoMoved;
-
-      const line = document.getElementById(`line-${type}-${r}-${c}`);
-      line.classList.add(`claimed-p${playerWhoMoved}`);
-
-      const capturedBoxes = getCompletedBoxes(type, r, c);
-
-      moveHistory.push({
-        type,
-        r,
-        c,
-        player: playerWhoMoved,
-        capturedBoxes: [...capturedBoxes]
-      });
-
-      if (capturedBoxes.length > 0) {
-        capturedBoxes.forEach(b => markBox(b.r, b.c, playerWhoMoved));
-        scores[playerWhoMoved] += capturedBoxes.length;
-
-        if (scores[1] + scores[2] === GRID_SIZE * GRID_SIZE) {
-          isGameOver = true;
-          endGame();
-          updateUI();
-          return;
-        }
-      } else {
-        currentPlayer = (currentPlayer === 1) ? 2 : 1;
-      }
-
-      updateUI();
-    }
-
-    function getCompletedBoxes(type, r, c) {
-      const completed = [];
-      const isBoxComplete = (row, col) => {
-        return (
-          horizontalEdges[row][col] !== null &&
-          horizontalEdges[row + 1][col] !== null &&
-          verticalEdges[row][col] !== null &&
-          verticalEdges[row][col + 1] !== null
-        );
-      };
-
-      if (type === 'h') {
-        if (r > 0 && isBoxComplete(r - 1, c) && boxes[r - 1][c] === null) {
-          completed.push({ r: r - 1, c });
-        }
-        if (r < GRID_SIZE && isBoxComplete(r, c) && boxes[r][c] === null) {
-          completed.push({ r, c });
-        }
-      } else {
-        if (c > 0 && isBoxComplete(r, c - 1) && boxes[r][c - 1] === null) {
-          completed.push({ r, c: c - 1 });
-        }
-        if (c < GRID_SIZE && isBoxComplete(r, c) && boxes[r][c] === null) {
-          completed.push({ r, c });
-        }
-      }
-
-      return completed;
-    }
-
-    function markBox(r, c, player) {
-      boxes[r][c] = player;
-      const rect = document.getElementById(`box-${r}-${c}`);
-      const label = document.getElementById(`box-label-${r}-${c}`);
-      rect.classList.add(`claimed-p${player}`);
-
-      const name = (player === 1) ? player1Name : player2Name;
-      label.textContent = name.charAt(0).toUpperCase();
-      label.classList.add('visible');
-    }
-
-    function unmarkBox(r, c) {
-      boxes[r][c] = null;
-      const rect = document.getElementById(`box-${r}-${c}`);
-      const label = document.getElementById(`box-label-${r}-${c}`);
-      rect.classList.remove('claimed-p1', 'claimed-p2');
-      label.textContent = '';
-      label.classList.remove('visible');
-    }
-
-    function undoLastMove() {
-      if (moveHistory.length === 0) return;
-
-      const lastMove = moveHistory.pop();
-      const { type, r, c, player, capturedBoxes } = lastMove;
-
-      const arr = (type === 'h') ? horizontalEdges : verticalEdges;
-      arr[r][c] = null;
-
-      const line = document.getElementById(`line-${type}-${r}-${c}`);
-      line.classList.remove('claimed-p1', 'claimed-p2');
-
-      if (capturedBoxes.length > 0) {
-        capturedBoxes.forEach(b => unmarkBox(b.r, b.c));
-        scores[player] -= capturedBoxes.length;
-      }
-
-      currentPlayer = player;
-      isGameOver = false;
-
-      updateUI();
-    }
-
-    function updateUI() {
-      score1El.textContent = scores[1];
-      score2El.textContent = scores[2];
-      undoBtn.disabled = moveHistory.length === 0;
-
-      if (isGameOver) return;
-
-      const activeName = (currentPlayer === 1) ? player1Name : player2Name;
-      if (currentPlayer === 1) {
-        card1El.classList.add('active-p1');
-        card2El.classList.remove('active-p2');
-        statusMsg.textContent = `${activeName}'s turn`;
-        statusMsg.style.color = "var(--p1)";
-      } else {
-        card2El.classList.add('active-p2');
-        card1El.classList.remove('active-p1');
-        statusMsg.textContent = `${activeName}'s turn`;
-        statusMsg.style.color = "var(--p2)";
-      }
-
-      if (gameMode === 'single' && currentPlayer === 2 && !isAiThinking && !isGameOver) {
-        triggerAiTurn();
-      }
-    }
-
-    function endGame() {
-      card1El.classList.remove('active-p1');
-      card2El.classList.remove('active-p2');
-
-      if (scores[1] > scores[2]) {
-        statusMsg.textContent = `🎉 ${player1Name} Wins!`;
-        statusMsg.style.color = "var(--p1)";
-      } else if (scores[2] > scores[1]) {
-        statusMsg.textContent = `🎉 ${player2Name} Wins!`;
-        statusMsg.style.color = "var(--p2)";
-      } else {
-        statusMsg.textContent = "It's a Tie!";
-        statusMsg.style.color = "#ffffff";
-      }
-    }
-
-    modeButtons.forEach((button) => {
-      button.addEventListener('click', () => setGameMode(button.dataset.mode));
-    });
-
-    p2Input.disabled = true;
-    label2El.textContent = 'AI';
-    startNewGame();
-  </script>
 </body>
 </html>
