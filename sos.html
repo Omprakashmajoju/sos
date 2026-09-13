@@ -293,7 +293,8 @@
       filter: brightness(1.15);
     }
 
-    .celebration-modal {
+    .celebration-modal,
+    .instructions-modal {
       position: fixed;
       inset: 0;
       background: rgba(15, 23, 42, 0.72);
@@ -305,11 +306,13 @@
       padding: 18px;
     }
 
-    .celebration-modal.hidden {
+    .celebration-modal.hidden,
+    .instructions-modal.hidden {
       display: none;
     }
 
-    .celebration-card {
+    .celebration-card,
+    .instructions-card {
       width: min(360px, calc(100vw - 32px));
       background: rgba(15, 23, 42, 0.96);
       border: 1px solid rgba(148, 163, 184, 0.26);
@@ -319,21 +322,45 @@
       box-shadow: 0 20px 64px rgba(15, 23, 42, 0.6);
     }
 
-    .celebration-card h2 {
+    .celebration-card h2,
+    .instructions-card h2 {
       margin: 10px 0 8px;
       color: #34d399;
       font-size: clamp(1.5rem, 4vw, 2rem);
     }
 
-    .celebration-card p {
+    .celebration-card p,
+    .instructions-card p,
+    .instructions-card li {
       margin: 0 0 18px;
       color: #94a3b8;
       font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .instructions-card {
+      text-align: left;
+    }
+
+    .instructions-card h2 {
+      text-align: center;
+    }
+
+    .instructions-card ul {
+      margin: 0 0 16px;
+      padding-left: 18px;
+      color: #dfeaf9;
     }
 
     .celebration-icon {
       font-size: 3rem;
       margin-bottom: 8px;
+    }
+
+    .instructions-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
     }
 
     .mode-switch {
@@ -413,6 +440,25 @@
       <button class="primary-btn" onclick="startNewGame()">Apply & Start</button>
       <button id="undo-btn" onclick="undoLastMove()" disabled>Undo Move</button>
       <button onclick="resetCurrentGame()">Restart</button>
+      <button type="button" id="instructions-btn">Instructions</button>
+    </div>
+  </div>
+
+  <div id="instructions-modal" class="instructions-modal" aria-live="polite">
+    <div class="instructions-card">
+      <h2>How to Play SOS</h2>
+      <p>Each player takes turns drawing one line on the grid.</p>
+      <ul>
+        <li><strong>Player vs Player:</strong> both players alternate turns on the same board.</li>
+        <li><strong>Player vs AI:</strong> Player 1 plays as you, and the Computer plays as Player 2.</li>
+        <li>Tap or click a grid edge to claim it.</li>
+        <li>Complete a box by forming an S or O in the box pattern.</li>
+        <li>Each completed S or O scores a point for that player.</li>
+        <li>When a move creates a box, the same player keeps the turn.</li>
+      </ul>
+      <div class="instructions-actions">
+        <button type="button" class="primary-btn" onclick="hideInstructions(); startNewGame();">Start Game</button>
+      </div>
     </div>
   </div>
 
@@ -453,6 +499,8 @@
     const p2Input = document.getElementById('p2-input');
     const sizeInput = document.getElementById('grid-size-input');
     const undoBtn = document.getElementById('undo-btn');
+    const instructionsBtn = document.getElementById('instructions-btn');
+    const instructionsModal = document.getElementById('instructions-modal');
     const celebrationModal = document.getElementById('celebration-modal');
     const celebrationTitle = document.getElementById('celebration-title');
     const celebrationSubtitle = document.getElementById('celebration-subtitle');
@@ -461,6 +509,8 @@
     modeButtons.forEach((button) => {
       button.addEventListener('click', () => setGameMode(button.dataset.mode));
     });
+
+    instructionsBtn.addEventListener('click', showInstructions);
 
     // SVG Layout Constants
     const SVG_DIM = 400;
@@ -480,11 +530,35 @@
       celebrationModal.classList.add('hidden');
     }
 
+    function showInstructions() {
+      instructionsModal.classList.remove('hidden');
+    }
+
+    function hideInstructions() {
+      instructionsModal.classList.add('hidden');
+    }
+
+    function updateInstructionsText() {
+      const title = instructionsModal.querySelector('h2');
+      const list = instructionsModal.querySelector('ul');
+      const modeText = gameMode === 'ai' ? 'Player vs AI' : 'Player vs Player';
+      title.textContent = `How to Play SOS - ${modeText}`;
+      list.innerHTML = `
+        <li><strong>${modeText}:</strong> ${gameMode === 'ai' ? 'You play as Player 1 and the Computer plays as Player 2.' : 'Two players alternate turns on the same board.'}</li>
+        <li>Tap or click a grid edge to claim it.</li>
+        <li>Complete a box by forming an S or O in the box pattern.</li>
+        <li>Each completed S or O scores a point for that player.</li>
+        <li>When a move creates a box, the same player keeps the turn.</li>
+        <li>Use the size selector to change the board size before starting a new round.</li>
+      `;
+    }
+
     function setGameMode(mode) {
       gameMode = mode;
       modeButtons.forEach(button => {
         button.classList.toggle('active', button.dataset.mode === mode);
       });
+      updateInstructionsText();
 
       if (mode === 'ai') {
         player2Name = 'Computer';
@@ -498,6 +572,7 @@
 
     function startNewGame() {
       hideCelebration();
+      hideInstructions();
       player1Name = p1Input.value.trim() || "Player 1";
       player2Name = gameMode === 'ai' ? 'Computer' : (p2Input.value.trim() || "Player 2");
       label1El.textContent = player1Name;
@@ -878,7 +953,9 @@
     }
 
     // Launch game
-    startNewGame();
+    updateInstructionsText();
+    initGame();
+    showInstructions();
   </script>
 </body>
 </html>
