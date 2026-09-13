@@ -412,7 +412,7 @@
     </div>
   </div>
 
-  <div id="game-modal" class="modal" aria-live="polite">
+  <div id="game-modal" class="modal hidden" aria-live="polite">
     <div class="modal-card">
       <h2 id="modal-title">4 in a Row</h2>
       <p id="modal-text">Drop discs to connect four in a row.</p>
@@ -442,6 +442,7 @@
     let currentPlayer = RED;
     let gameOver = false;
     let hoverColumn = null;
+    let winningCells = [];
     let gameMode = 'pvp';
     let scores = { red: 0, yellow: 0 };
 
@@ -475,45 +476,6 @@
       return -1;
     }
 
-    function checkWinner(boardState, row, col, player) {
-      const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
-      for (const [dr, dc] of directions) {
-        let count = 1;
-        const winCells = [[row, col]];
-
-        for (let step = 1; step <= 3; step++) {
-          const r = row + dr * step;
-          const c = col + dc * step;
-          if (r >= 0 && r < ROWS && c >= 0 && c < COLS && boardState[r][c] === player) {
-            count += 1;
-            winCells.push([r, c]);
-          } else {
-            break;
-          }
-        }
-
-        for (let step = 1; step <= 3; step++) {
-          const r = row - dr * step;
-          const c = col - dc * step;
-          if (r >= 0 && r < ROWS && c >= 0 && c < COLS && boardState[r][c] === player) {
-            count += 1;
-            winCells.push([r, c]);
-          } else {
-            break;
-          }
-        }
-
-        if (count >= 4) {
-          return winCells;
-        }
-      }
-      return null;
-    }
-
-    function getWinningLine(row, col, player) {
-      return checkWinner(board, row, col, player);
-    }
-
     function openModal(title, text) {
       modalTitle.textContent = title;
       modalText.textContent = text;
@@ -524,7 +486,42 @@
       modal.classList.add('hidden');
     }
 
-    function finishRound(winner, line) {
+    function checkWinner(boardState, row, col, player) {
+      const directions = [[0, 1], [1, 0], [1, 1], [1, -1]];
+      for (const [dr, dc] of directions) {
+        let count = 1;
+        const cells = [[row, col]];
+
+        for (let step = 1; step <= 3; step++) {
+          const r = row + dr * step;
+          const c = col + dc * step;
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS && boardState[r][c] === player) {
+            count += 1;
+            cells.push([r, c]);
+          } else {
+            break;
+          }
+        }
+
+        for (let step = 1; step <= 3; step++) {
+          const r = row - dr * step;
+          const c = col - dc * step;
+          if (r >= 0 && r < ROWS && c >= 0 && c < COLS && boardState[r][c] === player) {
+            count += 1;
+            cells.push([r, c]);
+          } else {
+            break;
+          }
+        }
+
+        if (count >= 4) {
+          return cells;
+        }
+      }
+      return null;
+    }
+
+    function finishRound(winner) {
       gameOver = true;
       if (winner) {
         scores[winner] += 1;
@@ -535,17 +532,12 @@
         statusText.textContent = "It's a draw!";
         openModal('Draw Game', 'No more moves left. Try another round.');
       }
-      renderBoard(line || []);
+      renderBoard();
     }
 
-    function markWinningCells(line) {
-      const winningSet = new Set(line.map(([row, col]) => `${row}-${col}`));
-      return winningSet;
-    }
-
-    function renderBoard(winningCells = []) {
-      const winSet = markWinningCells(winningCells);
+    function renderBoard() {
       boardEl.innerHTML = '';
+      const winSet = new Set(winningCells.map(([row, col]) => `${row}-${col}`));
 
       for (let row = 0; row < ROWS; row++) {
         for (let col = 0; col < COLS; col++) {
@@ -553,34 +545,19 @@
           cell.type = 'button';
           cell.className = 'cell';
           cell.dataset.col = String(col);
+
           if (board[row][col]) {
-            cell.classList.add('filled');
             const disc = document.createElement('span');
             disc.className = `disc ${board[row][col]}`;
             if (winSet.has(`${row}-${col}`)) {
               disc.classList.add('win');
             }
             cell.appendChild(disc);
-          } else {
-            if (hoverColumn === col && !gameOver && !isColumnFull(col)) {
-              cell.classList.add(`preview-${currentPlayer}`);
-            }
+          } else if (!gameOver && hoverColumn === col) {
+            cell.classList.add(`preview-${currentPlayer}`);
           }
 
           cell.addEventListener('click', () => dropDisc(col));
-          cell.addEventListener('mouseenter', () => {
-            if (!gameOver && !isColumnFull(col)) {
-              hoverColumn = col;
-              renderBoard(winningCells);
-            }
-          });
-          cell.addEventListener('focus', () => {
-            if (!gameOver && !isColumnFull(col)) {
-              hoverColumn = col;
-              renderBoard(winningCells);
-            }
-          });
-
           boardEl.appendChild(cell);
         }
       }
@@ -594,20 +571,23 @@
       if (row === -1) return;
 
       board[row][col] = currentPlayer;
-      const line = getWinningLine(row, col, currentPlayer);
+      const line = checkWinner(board, row, col, currentPlayer);
 
       if (line) {
-        finishRound(currentPlayer, line);
+        winningCells = line;
+        finishRound(currentPlayer);
         return;
       }
 
       if (board.flat().every(Boolean)) {
-        finishRound(null, []);
+        winningCells = [];
+        finishRound(null);
         return;
       }
 
       currentPlayer = getOpponent(currentPlayer);
-      hoverColumn = col;
+      hoverColumn = null;
+      winningCells = [];
       updateStatus();
       renderBoard();
 
@@ -618,17 +598,15 @@
 
     function findImmediateMove(player, boardState) {
       for (let col = 0; col < COLS; col++) {
-        if (isColumnFullForBoard(boardState, col)) continue;
+        if (boardState[0][col] !== null) continue;
         const row = findDropRowForBoard(boardState, col);
-        const cloned = boardState.map((r) => [...r]);
-        cloned[row][col] = player;
-        if (checkWinner(cloned, row, col, player)) return col;
+        const nextState = boardState.map((item) => [...item]);
+        nextState[row][col] = player;
+        if (checkWinner(nextState, row, col, player)) {
+          return col;
+        }
       }
       return null;
-    }
-
-    function isColumnFullForBoard(state, col) {
-      return state[0][col] !== null;
     }
 
     function findDropRowForBoard(state, col) {
@@ -643,16 +621,13 @@
       const winningMove = findImmediateMove(YELLOW, board);
       if (winningMove !== null) return winningMove;
 
-      const blockMove = findImmediateMove(RED, board);
-      if (blockMove !== null) return blockMove;
+      const blockingMove = findImmediateMove(RED, board);
+      if (blockingMove !== null) return blockingMove;
 
       for (const col of centerOrder) {
         if (!isColumnFull(col)) return col;
       }
 
-      for (let col = 0; col < COLS; col++) {
-        if (!isColumnFull(col)) return col;
-      }
       return null;
     }
 
@@ -668,6 +643,7 @@
       currentPlayer = RED;
       gameOver = false;
       hoverColumn = null;
+      winningCells = [];
       updateStatus();
       closeModal();
       renderBoard();
@@ -698,10 +674,25 @@
       button.addEventListener('click', () => setGameMode(button.dataset.mode));
     });
 
+    boardEl.addEventListener('pointermove', (event) => {
+      const cell = event.target.closest('.cell');
+      if (!cell || gameOver) return;
+      const col = Number(cell.dataset.col);
+      if (!Number.isNaN(col) && hoverColumn !== col && !isColumnFull(col)) {
+        hoverColumn = col;
+        renderBoard();
+      }
+    });
+
+    boardEl.addEventListener('pointerleave', () => {
+      hoverColumn = null;
+      renderBoard();
+    });
+
     updateScores();
     updateStatus();
+    closeModal();
     renderBoard();
-    openModal('4 in a Row', 'Drop discs to connect four in a row. Pick a column and claim the board.');
   </script>
 </body>
 </html>
