@@ -50,6 +50,8 @@
           <div class="score-box">
             <div class="label">Red Sets</div>
             <div id="sets-red" class="score-num">0</div>
+            <div class="label">Red Games</div>
+            <div id="games-red" class="score-num">0</div>
             <div class="label">Points</div>
             <div id="points-red" class="big">0</div>
           </div>
@@ -57,6 +59,8 @@
           <div class="score-box">
             <div class="label">Yellow Sets</div>
             <div id="sets-yellow" class="score-num">0</div>
+            <div class="label">Yellow Games</div>
+            <div id="games-yellow" class="score-num">0</div>
             <div class="label">Points</div>
             <div id="points-yellow" class="big">0</div>
           </div>
@@ -107,8 +111,8 @@
     const serveBtn = document.getElementById('serve');
     const resetBtn = document.getElementById('reset');
 
-    const ROWS_TO_WIN_SET = 6; // points needed to win a set
     const SETS_TO_WIN_MATCH = 3;
+    const GAMES_TO_WIN_SET = 6; // games needed to win a set (must lead by 2)
 
     let mode = 'pvp';
     let gameRunning = false;
@@ -118,8 +122,11 @@
     let yellow = { x: canvas.width-20-12, y:(canvas.height-90)/2, vy:0 };
     let ball = { x: canvas.width/2, y: canvas.height/2, vx:0, vy:0, r:10, speed:6 };
 
+    // tennis-style scoring
     let sets = { red:0, yellow:0 };
-    let points = { red:0, yellow:0 };
+    let games = { red:0, yellow:0 };
+    let points = { red:0, yellow:0 }; // point counts: 0,1,2,3 => 0,15,30,40, 4 => advantage
+    let server = 'red';
 
     function resetPositions(){
       red.y = (canvas.height-paddle.h)/2;
@@ -185,27 +192,73 @@
       }
     }
 
+    function pointLabel(countRed, countYellow, who) {
+      // Return tennis-style point label for 'who'
+      const p = who === 'red' ? countRed : countYellow;
+      // normal mapping
+      if (p <= 0) return '0';
+      if (p === 1) return '15';
+      if (p === 2) return '30';
+      if (p === 3) {
+        // check deuce/adv
+        if (countRed >=3 && countYellow >=3) {
+          if (countRed === countYellow) return '40';
+          if ((who==='red' && countRed > countYellow)) return (countRed - countYellow === 1) ? 'Adv' : '40';
+          if ((who==='yellow' && countYellow > countRed)) return (countYellow - countRed === 1) ? 'Adv' : '40';
+        }
+        return '40';
+      }
+      if (p >= 4) {
+        // advantage
+        if (countRed === countYellow) return '40';
+        return (who === 'red' ? (countRed > countYellow ? 'Adv' : '40') : (countYellow > countRed ? 'Adv' : '40'));
+      }
+      return String(p);
+    }
+
     function handlePoint(player){
-      // update display
-      pointsRedEl.textContent = String(points.red);
-      pointsYellowEl.textContent = String(points.yellow);
-      // check set win
-      if (points[player] >= ROWS_TO_WIN_SET){
-        sets[player] += 1; points.red = 0; points.yellow = 0; 
-        setsRedEl.textContent = String(sets.red); setsYellowEl.textContent = String(sets.yellow);
+      // increment internal point count already done at score event
+      // update displayed tennis-style points
+      pointsRedEl.textContent = pointLabel(points.red, points.yellow, 'red');
+      pointsYellowEl.textContent = pointLabel(points.red, points.yellow, 'yellow');
+
+      // determine if a player wins the game: needs at least 4 points and 2-point lead
+      const pr = points.red, py = points.yellow;
+      if ((pr >=4 || py >=4) && Math.abs(pr - py) >= 2) {
+        const winner = pr > py ? 'red' : 'yellow';
+        // win game
+        games[winner] += 1;
+        // reset points for next game
+        points.red = 0; points.yellow = 0;
         pointsRedEl.textContent = '0'; pointsYellowEl.textContent = '0';
-        // match win
-        if (sets[player] >= SETS_TO_WIN_MATCH){
-          // match over
-          gameRunning = false;
-          alert((player==='red'? 'Red':'Yellow') + ' wins the match!');
-          // reset match automatically
-          sets = { red:0, yellow:0 }; points={red:0,yellow:0};
-          setsRedEl.textContent='0'; setsYellowEl.textContent='0';
-          pointsRedEl.textContent='0'; pointsYellowEl.textContent='0';
-        } else {
-          // start next set after small pause
-          setTimeout(() => { resetPositions(); }, 400);
+        // update games display
+        document.getElementById('games-red').textContent = String(games.red);
+        document.getElementById('games-yellow').textContent = String(games.yellow);
+        // alternate server each game
+        server = (server === 'red') ? 'yellow' : 'red';
+
+        // check set win: first to GAMES_TO_WIN_SET with 2-game lead
+        if ((games[winner] >= GAMES_TO_WIN_SET) && Math.abs(games.red - games.yellow) >= 2) {
+          sets[winner] += 1;
+          // reset games
+          games.red = 0; games.yellow = 0;
+          document.getElementById('games-red').textContent = '0';
+          document.getElementById('games-yellow').textContent = '0';
+          document.getElementById('sets-red').textContent = String(sets.red);
+          document.getElementById('sets-yellow').textContent = String(sets.yellow);
+          // check match win
+          if (sets[winner] >= SETS_TO_WIN_MATCH) {
+            gameRunning = false;
+            alert((winner==='red' ? 'Red' : 'Yellow') + ' wins the match!');
+            // reset everything
+            sets = { red:0, yellow:0 }; games = { red:0, yellow:0 }; points={red:0,yellow:0};
+            document.getElementById('sets-red').textContent = '0';
+            document.getElementById('sets-yellow').textContent = '0';
+            document.getElementById('games-red').textContent = '0';
+            document.getElementById('games-yellow').textContent = '0';
+            document.getElementById('points-red').textContent = '0';
+            document.getElementById('points-yellow').textContent = '0';
+          }
         }
       }
     }
