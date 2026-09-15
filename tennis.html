@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Tennis | MAJOJU's Gaming Studio</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:rgba(15,23,42,0.8); --muted:#bfd0ea; --text:#eef6ff;
+      --red:#ef4444; --yellow:#f59e0b; --card:#0b1220;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;font-family:"Segoe UI",Tahoma,Arial;background:linear-gradient(135deg,var(--bg),#071025);color:var(--text)}
+    .app{width:min(980px,100%);background:var(--panel);border-radius:20px;padding:18px;border:1px solid rgba(255,255,255,0.04);display:grid;grid-template-columns:1fr 320px;gap:16px}
+    .top{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+    .brand{color:var(--muted);text-decoration:none;font-weight:800}
+    .arena{background:linear-gradient(180deg,#08306b,#05305a);border-radius:16px;padding:14px;display:flex;align-items:center;justify-content:center}
+    canvas{width:100%;height:520px;border-radius:12px;background:linear-gradient(180deg,#05233f,#062338);display:block}
+    .panel{display:flex;flex-direction:column;gap:12px}
+    .card{background:rgba(255,255,255,0.03);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+    .label{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em}
+    .big{font-size:1.1rem;font-weight:800}
+    .scores{display:flex;gap:12px;align-items:center}
+    .score-box{padding:8px 12px;border-radius:9px;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;align-items:center}
+    .score-num{font-size:1.4rem;font-weight:900}
+    .controls{display:flex;gap:8px}
+    button{cursor:pointer;border:1px solid rgba(255,255,255,0.04);background:linear-gradient(135deg,#7c3aed,#6366f1);color:white;padding:10px;border-radius:10px;font-weight:700}
+    .muted-btn{background:rgba(255,255,255,0.04)}
+    .small{font-size:.92rem;padding:8px 10px}
+    .kbd{font-size:0.85rem;color:var(--muted)}
+    .footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:0.85rem;margin-top:6px}
+    @media(max-width:920px){.app{grid-template-columns:1fr;}.panel{order:2}}
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <a class="brand" href="index.html">MAJOJU's Gaming Studio</a>
+      <div class="kbd">Controls: Player1 W/S, Player2 Up/Down (or AI)</div>
+    </div>
+
+    <div class="arena card">
+      <canvas id="court" width="860" height="520" aria-label="Tennis court"></canvas>
+    </div>
+
+    <aside class="panel">
+      <div class="card">
+        <div class="label">Match</div>
+        <div class="scores" style="margin-top:8px">
+          <div class="score-box">
+            <div class="label">Red Sets</div>
+            <div id="sets-red" class="score-num">0</div>
+            <div class="label">Points</div>
+            <div id="points-red" class="big">0</div>
+          </div>
+
+          <div class="score-box">
+            <div class="label">Yellow Sets</div>
+            <div id="sets-yellow" class="score-num">0</div>
+            <div class="label">Points</div>
+            <div id="points-yellow" class="big">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Mode</div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button id="pvp" class="muted-btn small">2 Players</button>
+          <button id="pvai" class="small">Vs AI</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Match Controls</div>
+        <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+          <div class="controls">
+            <button id="serve" class="small">Serve / Start</button>
+            <button id="reset" class="small muted-btn">Reset Match</button>
+          </div>
+          <div class="label">First to 3 sets wins.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">Tips</div>
+        <div style="margin-top:8px;color:var(--muted);font-size:0.95rem;line-height:1.45">Hit the ball with paddle; if opponent misses you score a point. Reach 6 points to secure a set; first to 3 sets wins the match.</div>
+      </div>
+    </aside>
+
+    <div class="footer">Use <strong>W/S</strong> for Red and <strong>Up/Down</strong> for Yellow. Serve with the Serve button.</div>
+  </div>
+
+  <script>
+    // Simple canvas pong-like tennis with sets
+    const canvas = document.getElementById('court');
+    const ctx = canvas.getContext('2d');
+    const FPS = 60;
+
+    const setsRedEl = document.getElementById('sets-red');
+    const setsYellowEl = document.getElementById('sets-yellow');
+    const pointsRedEl = document.getElementById('points-red');
+    const pointsYellowEl = document.getElementById('points-yellow');
+
+    const pvpBtn = document.getElementById('pvp');
+    const pvaiBtn = document.getElementById('pvai');
+    const serveBtn = document.getElementById('serve');
+    const resetBtn = document.getElementById('reset');
+
+    const ROWS_TO_WIN_SET = 6; // points needed to win a set
+    const SETS_TO_WIN_MATCH = 3;
+
+    let mode = 'pvp';
+    let gameRunning = false;
+
+    const paddle = { w:12, h:90, speed:6 };
+    let red = { x:20, y: (canvas.height-90)/2, vy:0 };
+    let yellow = { x: canvas.width-20-12, y:(canvas.height-90)/2, vy:0 };
+    let ball = { x: canvas.width/2, y: canvas.height/2, vx:0, vy:0, r:10, speed:6 };
+
+    let sets = { red:0, yellow:0 };
+    let points = { red:0, yellow:0 };
+
+    function resetPositions(){
+      red.y = (canvas.height-paddle.h)/2;
+      yellow.y = (canvas.height-paddle.h)/2;
+      ball.x = canvas.width/2; ball.y = canvas.height/2; ball.vx = 0; ball.vy = 0; gameRunning = false;
+    }
+
+    function startServe(){
+      if (gameRunning) return;
+      // slight random direction
+      const angle = (Math.random()*0.6 - 0.3);
+      const dir = Math.random()<0.5 ? -1 : 1;
+      ball.vx = dir * ball.speed * Math.cos(angle);
+      ball.vy = ball.speed * Math.sin(angle);
+      gameRunning = true;
+    }
+
+    function update(){
+      // paddles
+      red.y += red.vy; yellow.y += yellow.vy;
+      red.y = Math.max(0, Math.min(canvas.height-paddle.h, red.y));
+      yellow.y = Math.max(0, Math.min(canvas.height-paddle.h, yellow.y));
+
+      if (mode === 'pvai') {
+        // simple AI follows ball
+        const center = yellow.y + paddle.h/2;
+        if (ball.y < center - 10) yellow.vy = -4;
+        else if (ball.y > center + 10) yellow.vy = 4;
+        else yellow.vy = 0;
+      }
+
+      if (!gameRunning) return;
+      ball.x += ball.vx; ball.y += ball.vy;
+
+      // top/bottom bounce
+      if (ball.y - ball.r <= 0 || ball.y + ball.r >= canvas.height){ ball.vy *= -1; }
+
+      // paddle collisions
+      // red
+      if (ball.x - ball.r <= red.x + paddle.w && ball.y >= red.y && ball.y <= red.y + paddle.h){
+        ball.x = red.x + paddle.w + ball.r; ball.vx = Math.abs(ball.vx) * 1.03; // slight speed up
+        // reflect with angle based on hit offset
+        const offset = (ball.y - (red.y + paddle.h/2)) / (paddle.h/2);
+        ball.vy = ball.speed * offset;
+        ball.vx = Math.abs(ball.vx);
+      }
+      // yellow
+      if (ball.x + ball.r >= yellow.x && ball.y >= yellow.y && ball.y <= yellow.y + paddle.h){
+        ball.x = yellow.x - ball.r; ball.vx = -Math.abs(ball.vx) * 1.03;
+        const offset = (ball.y - (yellow.y + paddle.h/2)) / (paddle.h/2);
+        ball.vy = ball.speed * offset;
+        ball.vx = -Math.abs(ball.vx);
+      }
+
+      // score when ball passes left or right
+      if (ball.x + ball.r < 0){ // yellow scores
+        points.yellow += 1; handlePoint('yellow');
+        resetPositions();
+      }
+      if (ball.x - ball.r > canvas.width){ // red scores
+        points.red += 1; handlePoint('red');
+        resetPositions();
+      }
+    }
+
+    function handlePoint(player){
+      // update display
+      pointsRedEl.textContent = String(points.red);
+      pointsYellowEl.textContent = String(points.yellow);
+      // check set win
+      if (points[player] >= ROWS_TO_WIN_SET){
+        sets[player] += 1; points.red = 0; points.yellow = 0; 
+        setsRedEl.textContent = String(sets.red); setsYellowEl.textContent = String(sets.yellow);
+        pointsRedEl.textContent = '0'; pointsYellowEl.textContent = '0';
+        // match win
+        if (sets[player] >= SETS_TO_WIN_MATCH){
+          // match over
+          gameRunning = false;
+          alert((player==='red'? 'Red':'Yellow') + ' wins the match!');
+          // reset match automatically
+          sets = { red:0, yellow:0 }; points={red:0,yellow:0};
+          setsRedEl.textContent='0'; setsYellowEl.textContent='0';
+          pointsRedEl.textContent='0'; pointsYellowEl.textContent='0';
+        } else {
+          // start next set after small pause
+          setTimeout(() => { resetPositions(); }, 400);
+        }
+      }
+    }
+
+    function draw(){
+      // court background
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // center net
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(0,0,canvas.width,6);
+      // paddles
+      ctx.fillStyle = '#ff6b6b'; ctx.fillRect(red.x, red.y, paddle.w, paddle.h);
+      ctx.fillStyle = '#facc15'; ctx.fillRect(yellow.x, yellow.y, paddle.w, paddle.h);
+      // ball
+      ctx.beginPath();
+      const g = ctx.createRadialGradient(ball.x-ball.r/2, ball.y-ball.r/2,1, ball.x, ball.y, ball.r);
+      g.addColorStop(0,'#fff'); g.addColorStop(1,'#cbd5e1');
+      ctx.fillStyle = g;
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+      // scoreboard overlay subtle
+      ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fillRect( (canvas.width-220)/2, 12, 220, 36 );
+      ctx.fillStyle='rgba(255,255,255,0.9)'; ctx.font='16px Arial'; ctx.textAlign='center';
+      ctx.fillText(`Sets ${sets.red} - ${sets.yellow} | Points ${points.red} - ${points.yellow}`, canvas.width/2, 36);
+    }
+
+    // keyboard controls
+    const keys = {};
+    window.addEventListener('keydown', (e)=>{ keys[e.key.toLowerCase()]=true; updatePaddlesFromKeys(); });
+    window.addEventListener('keyup', (e)=>{ keys[e.key.toLowerCase()]=false; updatePaddlesFromKeys(); });
+
+    function updatePaddlesFromKeys(){
+      red.vy = 0; yellow.vy = 0;
+      if (keys['w']) red.vy = -paddle.speed;
+      if (keys['s']) red.vy = paddle.speed;
+      if (keys['arrowup']) yellow.vy = -paddle.speed;
+      if (keys['arrowdown']) yellow.vy = paddle.speed;
+    }
+
+    // UI hooks
+    pvpBtn.addEventListener('click', ()=>{ mode='pvp'; pvpBtn.classList.add('muted-btn'); pvaiBtn.classList.remove('muted-btn'); resetMatchPartial(); });
+    pvaiBtn.addEventListener('click', ()=>{ mode='pvai'; pvaiBtn.classList.add('muted-btn'); pvpBtn.classList.remove('muted-btn'); resetMatchPartial(); });
+    serveBtn.addEventListener('click', ()=> startServe());
+    resetBtn.addEventListener('click', ()=>{ sets={red:0,yellow:0}; points={red:0,yellow:0}; setsRedEl.textContent='0'; setsYellowEl.textContent='0'; pointsRedEl.textContent='0'; pointsYellowEl.textContent='0'; resetPositions(); });
+
+    function resetMatchPartial(){ sets={red:0,yellow:0}; points={red:0,yellow:0}; setsRedEl.textContent='0'; setsYellowEl.textContent='0'; pointsRedEl.textContent='0'; pointsYellowEl.textContent='0'; resetPositions(); }
+
+    // main loop
+    function tick(){
+      // apply keyboard continuous movement
+      updatePaddlesFromKeys();
+      update(); draw();
+      requestAnimationFrame(tick);
+    }
+
+    // initialize
+    resetPositions(); draw(); tick();
+  </script>
+</body>
+</html>
